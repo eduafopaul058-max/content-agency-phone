@@ -1,0 +1,765 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d1124">
+<meta name="referrer" content="no-referrer">
+<title>Content Agency</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg0: #070914; --bg1: #0d1124; --bg2: #141a33;
+    --glass: rgba(24, 31, 61, 0.66); --glass-hi: rgba(36, 46, 88, 0.78);
+    --edge: rgba(148, 163, 255, 0.16); --edge-hi: rgba(170, 182, 255, 0.34);
+    --text: #eef0ff; --muted: #9aa3c7; --faint: #6b7399;
+    --cyan: #3ee6d0; --violet: #8b7bff; --blue: #5aa8ff; --amber: #ffb547; --red: #ff5d73; --green: #4ce08a;
+    --radius: 18px;
+    --shadow: 0 1px 0 rgba(255,255,255,.06) inset, 0 18px 40px -12px rgba(0,0,0,.65);
+    --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --display: "Space Grotesk", "Inter", system-ui, sans-serif;
+    --nav-h: 64px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; min-height: 100%; overflow-x: hidden; }
+  body {
+    background: radial-gradient(700px 500px at 90% -10%, rgba(139,123,255,.24), transparent 60%),
+                radial-gradient(600px 500px at -20% 40%, rgba(62,230,208,.12), transparent 60%),
+                linear-gradient(180deg, var(--bg1), var(--bg0));
+    background-attachment: fixed;
+    color: var(--text); font: 15px/1.5 var(--font); -webkit-font-smoothing: antialiased;
+  }
+  button, input, textarea, select { font: inherit; color: inherit; }
+  button { cursor: pointer; border: 0; background: none; }
+  :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 10px; }
+  [hidden] { display: none !important; }
+
+  /* ---------- shell ---------- */
+  .wrap { max-width: 560px; margin: 0 auto; padding: 0 16px; }
+  header.top {
+    position: sticky; top: 0; z-index: 5;
+    padding: calc(env(safe-area-inset-top) + 12px) 0 12px;
+    background: linear-gradient(180deg, rgba(13,17,36,.94), rgba(13,17,36,.78));
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--edge);
+  }
+  header.top .wrap { display: flex; align-items: center; gap: 12px; }
+  .brand { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+  .brand img { width: 34px; height: 34px; border-radius: 10px; }
+  .brand h1 { font: 600 18px/1.1 var(--display); margin: 0; letter-spacing: -.01em; }
+  .brand small { display: block; color: var(--muted); font-size: 12px; font-weight: 500; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; background: var(--faint); }
+  .dot.on { background: var(--green); box-shadow: 0 0 0 4px rgba(76,224,138,.16); }
+  .dot.off { background: var(--amber); box-shadow: 0 0 0 4px rgba(255,181,71,.14); }
+  .iconbtn { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: var(--muted); border: 1px solid var(--edge); background: var(--glass); }
+  main { padding: 16px 0 calc(var(--nav-h) + env(safe-area-inset-bottom) + 24px); }
+
+  nav.tabs {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 6;
+    padding-bottom: env(safe-area-inset-bottom);
+    background: rgba(10,13,30,.92); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid var(--edge);
+  }
+  nav.tabs .wrap { display: grid; grid-template-columns: repeat(5, 1fr); height: var(--nav-h); padding: 0 6px; }
+  nav.tabs button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--faint); font-size: 11px; font-weight: 600; position: relative; }
+  nav.tabs button svg { width: 22px; height: 22px; }
+  nav.tabs button[aria-current="page"] { color: var(--text); }
+  nav.tabs button[aria-current="page"] svg { color: var(--cyan); }
+  .badge { position: absolute; top: 8px; left: calc(50% + 6px); min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--violet); color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
+
+  /* ---------- building blocks ---------- */
+  h2.section { font: 600 13px/1 var(--font); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 26px 2px 10px; display: flex; justify-content: space-between; align-items: baseline; }
+  h2.section:first-child { margin-top: 4px; }
+  h2.section span { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--faint); }
+  .card { background: var(--glass); border: 1px solid var(--edge); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; }
+  .card + .card { margin-top: 12px; }
+  .muted { color: var(--muted); }
+  .faint { color: var(--faint); font-size: 13px; }
+  .row { display: flex; align-items: center; gap: 10px; }
+  .grow { flex: 1; min-width: 0; }
+  .ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: rgba(139,123,255,.16); color: #cfc8ff; border: 1px solid rgba(139,123,255,.28); }
+  .chip.cyan { background: rgba(62,230,208,.12); color: #9ff3e7; border-color: rgba(62,230,208,.28); }
+  .chip.amber { background: rgba(255,181,71,.12); color: #ffd79a; border-color: rgba(255,181,71,.3); }
+  .chip.red { background: rgba(255,93,115,.12); color: #ffb0bb; border-color: rgba(255,93,115,.3); }
+  .chip.green { background: rgba(76,224,138,.12); color: #a9f2c6; border-color: rgba(76,224,138,.3); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; white-space: nowrap; padding: 0 16px; border-radius: 13px; font-weight: 600; border: 1px solid var(--edge-hi); background: var(--glass-hi); transition: transform .12s ease, opacity .2s; text-decoration: none; color: var(--text); }
+  .btn:active { transform: scale(.97); }
+  .btn[disabled] { opacity: .45; pointer-events: none; }
+  .btn.primary { background: linear-gradient(135deg, #7b6bff, #3ec8e6); border-color: transparent; color: #fff; box-shadow: 0 8px 22px -8px rgba(123,107,255,.7); }
+  .btn.danger { background: rgba(255,93,115,.14); border-color: rgba(255,93,115,.45); color: #ffc2ca; }
+  .btn.ghost { background: transparent; }
+  .btn.small { min-height: 36px; padding: 0 12px; font-size: 13px; border-radius: 11px; }
+  .btn.block { width: 100%; }
+  .btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  .btns .btn { flex: 1 1 0; }
+  .tools { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+  input[type=text], input[type=email], input[type=password], input[type=url], textarea, select {
+    width: 100%; padding: 12px 14px; border-radius: 13px; border: 1px solid var(--edge-hi); background: rgba(7,9,20,.55); outline: none;
+  }
+  input:focus, textarea:focus, select:focus { border-color: var(--blue); }
+  textarea { min-height: 96px; resize: vertical; }
+  label.field { display: block; margin-top: 14px; }
+  label.field > span { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+  .empty { text-align: center; padding: 34px 16px; color: var(--muted); }
+  .empty b { display: block; color: var(--text); font: 600 17px var(--display); margin-bottom: 4px; }
+
+  /* ---------- home ---------- */
+  .hero { position: relative; overflow: hidden; padding: 20px; }
+  .hero::after { content: ""; position: absolute; width: 220px; height: 220px; right: -70px; top: -90px; border-radius: 50%; background: radial-gradient(circle, rgba(62,230,208,.28), transparent 65%); pointer-events: none; }
+  .hero.stopped::after { background: radial-gradient(circle, rgba(255,93,115,.32), transparent 65%); }
+  .hero h3 { font: 600 24px/1.15 var(--display); margin: 8px 0 4px; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+  .stat { text-align: left; padding: 14px; border-radius: 16px; background: var(--glass); border: 1px solid var(--edge); }
+  .stat b { display: block; font: 600 26px/1 var(--display); }
+  .stat span { font-size: 12px; color: var(--muted); }
+  .agent { display: flex; align-items: center; gap: 12px; padding: 12px 0; }
+  .agent + .agent { border-top: 1px solid var(--edge); }
+  .agent .name { font-weight: 600; text-transform: capitalize; }
+  .pulse { width: 10px; height: 10px; border-radius: 50%; background: var(--faint); flex: none; }
+  .pulse.run { background: var(--cyan); animation: pulse 1.6s ease-out infinite; }
+  .pulse.paused { background: var(--amber); }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(62,230,208,.55); } 100% { box-shadow: 0 0 0 10px rgba(62,230,208,0); } }
+
+  /* ---------- review / post ---------- */
+  .video { position: relative; margin: 12px -16px 0; background: #000; height: min(58vh, 560px); display: grid; place-items: center; overflow: hidden; }
+  .video.small { height: min(40vh, 360px); }
+  .video video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+  .video .ph { color: var(--faint); font-size: 13px; text-align: center; padding: 16px; }
+  .title { font: 600 18px/1.25 var(--display); margin: 10px 0 0; }
+  .caption { margin: 8px 0 0; color: #d6daf3; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .tags { color: var(--blue); font-size: 13px; margin-top: 6px; overflow-wrap: anywhere; }
+  .waiting { margin-top: 14px; padding: 12px 14px; border-radius: 13px; background: rgba(90,168,255,.1); border: 1px solid rgba(90,168,255,.28); color: #bcd9ff; font-size: 14px; }
+  .waiting.bad { background: rgba(255,93,115,.1); border-color: rgba(255,93,115,.3); color: #ffc2ca; }
+  .job-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .upcoming { display: flex; gap: 12px; align-items: center; padding: 12px 0; }
+  .upcoming + .upcoming { border-top: 1px solid var(--edge); }
+  .when { flex: none; width: 64px; text-align: center; border-radius: 12px; padding: 6px 0; background: rgba(139,123,255,.12); border: 1px solid rgba(139,123,255,.22); }
+  .when b { display: block; font: 600 15px/1.1 var(--display); }
+  .when span { font-size: 11px; color: var(--muted); }
+
+  /* ---------- activity / talk ---------- */
+  .event { display: grid; grid-template-columns: 10px 1fr; gap: 12px; padding: 11px 0; }
+  .event + .event { border-top: 1px solid var(--edge); }
+  .event i { width: 8px; height: 8px; border-radius: 50%; margin-top: 7px; background: var(--violet); }
+  .event i.ok { background: var(--green); } .event i.bad { background: var(--red); } .event i.warn { background: var(--amber); }
+  .event p { margin: 0; overflow-wrap: anywhere; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 14px; background: rgba(7,9,20,.55); border: 1px solid var(--edge); }
+  .seg button { min-height: 38px; border-radius: 10px; font-weight: 600; color: var(--muted); }
+  .seg button[aria-pressed="true"] { background: var(--glass-hi); color: var(--text); box-shadow: 0 0 0 1px var(--edge-hi) inset; }
+  .cmd { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; }
+  .cmd + .cmd { border-top: 1px solid var(--edge); }
+
+  /* ---------- gate screens, sheet, toast ---------- */
+  .gate { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
+  .gate .card { width: 100%; max-width: 420px; padding: 24px; }
+  .gate img { width: 64px; height: 64px; border-radius: 18px; display: block; margin-bottom: 14px; }
+  .gate h1 { font: 600 24px/1.15 var(--display); margin: 0 0 6px; }
+  .error { color: #ffb0bb; font-size: 14px; margin-top: 12px; min-height: 1em; }
+  pre.sql { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; background: rgba(7,9,20,.7); border: 1px solid var(--edge); border-radius: 12px; padding: 12px; }
+  .sheet-bg { position: fixed; inset: 0; z-index: 20; background: rgba(3,4,12,.6); display: flex; align-items: flex-end; justify-content: center; }
+  .sheet { width: 100%; max-width: 560px; padding: 20px 16px calc(env(safe-area-inset-bottom) + 20px); border-radius: 22px 22px 0 0; background: var(--bg2); border: 1px solid var(--edge-hi); border-bottom: 0; animation: up .22s ease; }
+  .sheet h3 { font: 600 19px var(--display); margin: 0 0 4px; }
+  @keyframes up { from { transform: translateY(30px); opacity: 0; } }
+  #toast { position: fixed; left: 50%; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 14px); transform: translateX(-50%); z-index: 30; width: min(92vw, 520px); display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+  #toast div { padding: 12px 16px; border-radius: 14px; background: rgba(26,33,64,.97); border: 1px solid var(--edge-hi); box-shadow: var(--shadow); animation: up .2s ease; }
+  #toast div.bad { border-color: rgba(255,93,115,.5); }
+  .demo { position: fixed; top: calc(env(safe-area-inset-top) + 4px); right: 8px; z-index: 40; font-size: 10px; font-weight: 700; letter-spacing: .1em; padding: 2px 8px; border-radius: 999px; background: var(--amber); color: #1a1200; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<noscript><p style="padding:24px">This app needs JavaScript.</p></noscript>
+
+<!-- one-time setup: which Supabase project to talk to -->
+<section id="setup" class="gate" hidden>
+  <form class="card" id="setup-form" autocomplete="off">
+    <img src="icon-192.png" alt="">
+    <h1>Connect your agency</h1>
+    <p class="muted">Paste your Supabase project's address and its <b>publishable</b> key (Project Settings → API Keys). Never the secret key.</p>
+    <label class="field"><span>Project URL</span><input type="url" name="url" placeholder="https://abcd1234.supabase.co" required></label>
+    <label class="field"><span>Publishable key</span><input type="text" name="key" placeholder="sb_publishable_…" required spellcheck="false"></label>
+    <p class="error" id="setup-error" role="alert"></p>
+    <button class="btn primary block" type="submit">Save</button>
+  </form>
+</section>
+
+<section id="login" class="gate" hidden>
+  <form class="card" id="login-form">
+    <img src="icon-192.png" alt="">
+    <h1>Sign in</h1>
+    <p class="muted">Use the email and password of the owner account you made in Supabase.</p>
+    <label class="field"><span>Email</span><input type="email" name="email" autocomplete="username" required></label>
+    <label class="field"><span>Password</span><input type="password" name="password" autocomplete="current-password" required></label>
+    <p class="error" id="login-error" role="alert"></p>
+    <button class="btn primary block" type="submit">Sign in</button>
+    <button class="btn ghost block" type="button" id="change-project" style="margin-top:8px">Use a different project</button>
+  </form>
+</section>
+
+<section id="not-owner" class="gate" hidden>
+  <div class="card">
+    <img src="icon-192.png" alt="">
+    <h1>Almost there</h1>
+    <p class="muted">You're signed in, but this account isn't an owner yet. In Supabase → SQL Editor, run:</p>
+    <pre class="sql" id="owner-sql"></pre>
+    <div class="btns"><button class="btn primary" id="recheck">I ran it</button><button class="btn" data-signout>Sign out</button></div>
+  </div>
+</section>
+
+<div id="app" hidden>
+  <header class="top">
+    <div class="wrap">
+      <div class="brand">
+        <img src="icon-192.png" alt="">
+        <div class="grow"><h1 id="view-title">Home</h1><small id="pc-status"><span class="dot"></span>Connecting…</small></div>
+      </div>
+      <button class="iconbtn" id="menu" aria-label="Account and settings">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+      </button>
+    </div>
+  </header>
+  <main class="wrap">
+    <section data-view="home"></section>
+    <section data-view="review" hidden></section>
+    <section data-view="post" hidden></section>
+    <section data-view="activity" hidden></section>
+    <section data-view="talk" hidden></section>
+  </main>
+  <nav class="tabs" aria-label="Sections">
+    <div class="wrap">
+      <button data-tab="home" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.5"/><ellipse cx="12" cy="12" rx="10" ry="4.5" transform="rotate(-24 12 12)"/></svg>Home</button>
+      <button data-tab="review"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="3"/><path d="M10.5 9.5v5l4-2.5z"/></svg>Review<span class="badge" id="badge-review" hidden></span></button>
+      <button data-tab="post"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3m0 0L7.5 7.5M12 3l4.5 4.5"/><path d="M4 14v4a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-4"/></svg>Post<span class="badge" id="badge-post" hidden></span></button>
+      <button data-tab="activity"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3 7 4-14 3 7h4"/></svg>Activity</button>
+      <button data-tab="talk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.8 7L4 20.5l1.5-4.7A8 8 0 1 1 21 12z"/></svg>Talk</button>
+    </div>
+  </nav>
+</div>
+<div id="toast" aria-live="polite"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+"use strict";
+// ---------------------------------------------------------------------------
+// Everything shown here comes from the Supabase mirror that the PC's sync job
+// (python -m content_agency.remote_sync) keeps up to date. Buttons never change
+// anything directly: they queue a row in agency_commands, which only owners may
+// insert (row-level security), and the PC applies it with a remote:<you> actor.
+// All remote text is rendered as text, never as HTML.
+// ---------------------------------------------------------------------------
+const AGENTS = ["planner", "researcher", "scriptwriter", "video", "judge"];
+const ACCOUNTS = { fun_facts: "Weird Animals", motivation: "Get Unstuck", history_mysteries: "Unsolved History", focus_productivity: "Focus Lab" };
+const PLATFORMS = {
+  tiktok: { name: "TikTok", open: "https://www.tiktok.com/upload" },
+  youtube_shorts: { name: "YouTube Shorts", open: "https://studio.youtube.com/" },
+  instagram_reels: { name: "Instagram Reels", open: "https://www.instagram.com/" },
+  facebook_reels: { name: "Facebook Reels", open: "https://www.facebook.com/reels/create" },
+};
+const TITLES = { home: "Home", review: "Review", post: "Post", activity: "Activity", talk: "Talk to agents" };
+const BUCKET = "review-videos";
+const DEMO = new URLSearchParams(location.search).has("demo");
+
+// ---------- tiny helpers ----------
+const $ = (s, r = document) => r.querySelector(s);
+function el(tag, props, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (v == null || v === false) continue;
+    if (k === "class") n.className = v;
+    else if (k === "text") n.textContent = v;
+    else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v === true ? "" : v);
+  }
+  for (const kid of kids.flat()) if (kid != null && kid !== false) n.append(kid instanceof Node ? kid : String(kid));
+  return n;
+}
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  del(k) { try { localStorage.removeItem(k); } catch {} },
+};
+function toast(msg, bad = false) {
+  const t = el("div", { class: bad ? "bad" : "", role: bad ? "alert" : "status", text: msg });
+  $("#toast").append(t);
+  setTimeout(() => t.remove(), bad ? 6000 : 3500);
+}
+function ago(iso) {
+  if (!iso) return "never";
+  const s = Math.round((Date.now() - new Date(iso)) / 1000);
+  const f = (n, u) => `${n} ${u}${n === 1 ? "" : "s"}`;
+  const abs = Math.abs(s), past = s >= 0;
+  const txt = abs < 45 ? "moments" : abs < 3600 ? f(Math.round(abs / 60), "min") : abs < 86400 ? f(Math.round(abs / 3600), "hour") : f(Math.round(abs / 86400), "day");
+  return abs < 45 ? (past ? "just now" : "in a moment") : past ? `${txt} ago` : `in ${txt}`;
+}
+const clock = (iso) => new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+const day = (iso) => {
+  const d = new Date(iso), today = new Date(), tmr = new Date(Date.now() + 864e5);
+  if (d.toDateString() === today.toDateString()) return "Today";
+  if (d.toDateString() === tmr.toDateString()) return "Tomorrow";
+  return d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" });
+};
+const account = (id) => ACCOUNTS[id] || id;
+const platform = (id) => (PLATFORMS[id] || { name: id }).name;
+
+// ---------- data layer (Supabase, or sample data for ?demo) ----------
+const state = { status: null, agents: [], review: [], jobs: [], events: [], commands: [], user: null };
+let api = null;
+
+function supabaseApi(cfg) {
+  const sb = window.supabase.createClient(cfg.url, cfg.key, { auth: { persistSession: true, autoRefreshToken: true } });
+  const urls = new Map();
+  const must = ({ data, error }) => { if (error) throw new Error(error.message); return data; };
+  return {
+    sb,
+    async session() { return (await sb.auth.getSession()).data.session; },
+    async signIn(email, password) { must(await sb.auth.signInWithPassword({ email, password })); },
+    async signOut() { await sb.auth.signOut(); },
+    async isOwner(uid) { return must(await sb.from("agency_owners").select("user_id").eq("user_id", uid)).length > 0; },
+    async load(table) {
+      switch (table) {
+        case "agency_status": return must(await sb.from(table).select("*").eq("id", 1)).at(0) || null;
+        case "agency_agents": return must(await sb.from(table).select("*").order("agent"));
+        case "agency_review": return must(await sb.from(table).select("*").order("synced_at"));
+        case "agency_jobs": return must(await sb.from(table).select("*").in("status", ["ready", "waiting", "blocked", "failed"]).order("due_at").limit(120));
+        case "agency_events": return must(await sb.from(table).select("*").order("id", { ascending: false }).limit(80));
+        case "agency_commands": return must(await sb.from(table).select("*").order("id", { ascending: false }).limit(40));
+      }
+    },
+    async command(row) { return must(await sb.from("agency_commands").insert(row).select().single()); },
+    async videoUrl(name, download) {
+      const key = `${name}|${download || ""}`, hit = urls.get(key);
+      if (hit && hit.until > Date.now()) return hit.url;
+      const opts = download ? { download } : undefined;
+      const data = must(await sb.storage.from(BUCKET).createSignedUrl(name, 3600, opts));
+      urls.set(key, { url: data.signedUrl, until: Date.now() + 50 * 60 * 1000 });
+      return data.signedUrl;
+    },
+    live(onChange) {
+      let ch = sb.channel("agency-live");
+      for (const t of ["agency_status", "agency_agents", "agency_review", "agency_jobs", "agency_events", "agency_commands"])
+        ch = ch.on("postgres_changes", { event: "*", schema: "public", table: t }, () => onChange(t));
+      ch.subscribe();
+    },
+  };
+}
+
+function demoApi() {
+  const now = Date.now(), iso = (m) => new Date(now + m * 60000).toISOString();
+  const data = {
+    agency_status: { id: 1, kill_switch: false, interrupt_requested: false, synced_at: iso(-0.2) },
+    agency_agents: AGENTS.map((a, i) => ({ agent: a, synced_at: iso(-0.2), paused: a === "researcher", can_run: a !== "researcher", running: a === "video" ? 1 : 0, pending: i % 2, succeeded: 12 + i * 3 })),
+    agency_review: [
+      { post_id: "fun_facts-1:post-1", account_id: "fun_facts", title: "This jellyfish never dies", caption: "It can turn back into a baby when it's hurt. Follow for more weird animals.", hashtags: "#jellyfish #animals #facts", video_object: null },
+      { post_id: "history_mysteries-2:post-1", account_id: "history_mysteries", title: "Nobody can read this book", caption: "The Voynich manuscript has beaten every codebreaker for a century.", hashtags: "#history #mystery", video_object: null },
+    ],
+    agency_jobs: [
+      ...Object.keys(PLATFORMS).map((p, i) => ({ job_id: `j${i}`, post_id: "motivation-3:post-1", account_id: "motivation", platform: p, status: i < 2 ? "ready" : "waiting", due_at: iso(i < 2 ? -20 : 60 * (i + 2)), title: "The two-minute rule", text: "Start so small you can't say no. #motivation #habits", reason: i < 2 ? "No API connected: post by hand" : "" })),
+      { job_id: "j9", post_id: "focus_productivity-1:post-1", account_id: "focus_productivity", platform: "youtube_shorts", status: "waiting", due_at: iso(60 * 26), title: "Why your focus breaks at minute 20", text: "", reason: "" },
+    ],
+    agency_events: [
+      { id: 5, time: iso(-1), agent: "video", type: "agent_started", message: "Rendering the axolotl short (60s)" },
+      { id: 4, time: iso(-6), agent: "judge", type: "task_succeeded", message: "Judge passed the jellyfish short: hook cites fact f1" },
+      { id: 3, time: iso(-30), agent: "researcher", type: "agent_paused", message: "Paused by remote:owner" },
+      { id: 2, time: iso(-55), agent: "scriptwriter", type: "task_failed", message: "Beat 3 states a number without a fact; retrying" },
+      { id: 1, time: iso(-80), agent: "planner", type: "task_succeeded", message: "Planned 4 posts for fun_facts" },
+    ],
+    agency_commands: [{ id: 1, created_at: iso(-30), command: "pause", agent: "researcher", body: null, status: "applied", result: "paused researcher" }],
+  };
+  let onChange = () => {};
+  return {
+    async session() { return { user: { id: "demo", email: "owner@example.com" } }; },
+    async signIn() {}, async signOut() {}, async isOwner() { return true; },
+    async load(t) { return structuredClone(data[t]); },
+    async command(row) {
+      const c = { id: data.agency_commands.length + 1, created_at: new Date().toISOString(), status: "pending", result: null, ...row };
+      data.agency_commands.unshift(c);
+      setTimeout(() => { c.status = "applied"; c.result = "Applied (demo)"; onChange("agency_commands"); }, 1500);
+      return structuredClone(c);
+    },
+    async videoUrl() { return null; },
+    live(cb) { onChange = cb; },
+  };
+}
+
+// ---------- commands ----------
+async function send(row, okText) {
+  try {
+    const c = await api.command(row);
+    state.commands = [c, ...state.commands.filter((x) => x.id !== c.id)];
+    mine.add(c.id);
+    toast(okText || "Sent. Your PC will apply it shortly.");
+    render();
+    return c;
+  } catch (e) { toast(`Couldn't send: ${e.message}`, true); }
+}
+const mine = new Set();      // commands sent from this phone this session
+const announced = new Set(); // results already shown as a toast
+function announceResults() {
+  for (const c of state.commands) {
+    if (!mine.has(c.id) || c.status === "pending" || announced.has(c.id)) continue;
+    announced.add(c.id);
+    toast(c.status === "applied" ? `✓ ${c.result}` : `Not done: ${c.result}`, c.status !== "applied");
+  }
+}
+const latestFor = (pred) => state.commands.find(pred);
+
+// ---------- rendering ----------
+let view = "home";
+function pcOnline() { return state.status && Date.now() - new Date(state.status.synced_at) < 120000; }
+function renderHeader() {
+  const s = $("#pc-status");
+  s.replaceChildren(
+    el("span", { class: `dot ${pcOnline() ? "on" : state.status ? "off" : ""}` }),
+    !state.status ? "Waiting for your PC's first sync" : pcOnline() ? `PC online · synced ${ago(state.status.synced_at)}` : `PC offline · last seen ${ago(state.status.synced_at)}`
+  );
+  const ready = state.jobs.filter((j) => j.status === "ready").length;
+  for (const [id, n] of [["#badge-review", state.review.length], ["#badge-post", ready]]) {
+    const b = $(id); b.hidden = !n; b.textContent = n > 9 ? "9+" : String(n);
+  }
+}
+
+function renderHome(root) {
+  const killed = state.status?.kill_switch;
+  const killCmd = latestFor((c) => (c.command === "kill_on" || c.command === "kill_off") && c.status === "pending");
+  const running = state.agents.reduce((n, a) => n + (a.running || 0), 0);
+  const ready = state.jobs.filter((j) => j.status === "ready").length;
+  const upcoming = state.jobs.filter((j) => j.status === "waiting").length;
+  root.replaceChildren(
+    el("div", { class: `card hero ${killed ? "stopped" : ""}` },
+      el("span", { class: `chip ${killed ? "red" : running ? "cyan" : ""}` }, killed ? "Kill switch on" : running ? `${running} agent${running > 1 ? "s" : ""} working` : "Idle"),
+      el("h3", { text: killed ? "Everything is stopped" : running ? "Making your next videos" : "Ready for the next run" }),
+      el("p", { class: "muted", style: "margin:0", text: killed ? "No agent will start until you turn it back on." : "Agents research, write, film, edit and check. You only decide." }),
+      el("div", { class: "btns" },
+        el("button", {
+          class: `btn ${killed ? "primary" : "danger"}`, disabled: !!killCmd || !state.status,
+          onclick: () => {
+            if (!killed && !confirm("Stop every agent now?")) return;
+            send({ command: killed ? "kill_off" : "kill_on" }, killed ? "Turning agents back on…" : "Stopping everything…");
+          },
+        }, killCmd ? "Waiting for PC…" : killed ? "Turn back on" : "Stop everything"),
+        el("button", {
+          class: "btn", disabled: !!killed || !state.status || !!state.status?.interrupt_requested,
+          onclick: () => confirm("Interrupt the run that's in progress?") && send({ command: "interrupt" }, "Interrupt requested."),
+        }, state.status?.interrupt_requested ? "Interrupt pending" : "Interrupt run"))),
+    el("div", { class: "stats" },
+      stat(state.review.length, "to review", "review"), stat(ready, "ready to post", "post"), stat(upcoming, "coming up", "post")),
+    el("h2", { class: "section" }, "Agents", el("span", { text: state.agents[0] ? `updated ${ago(state.agents[0].synced_at)}` : "" })),
+    el("div", { class: "card", style: "padding:4px 16px" },
+      state.agents.length ? state.agents.map(agentRow) : el("div", { class: "empty", text: "No agent status yet." })),
+    recentCommands());
+}
+function stat(n, label, tab) {
+  return el("button", { class: "stat", onclick: () => go(tab) }, el("b", { text: String(n) }), el("span", { text: label }));
+}
+function agentRow(a) {
+  const pending = latestFor((c) => c.agent === a.agent && (c.command === "pause" || c.command === "resume") && c.status === "pending");
+  const busy = a.running > 0;
+  return el("div", { class: "agent" },
+    el("span", { class: `pulse ${a.paused ? "paused" : busy ? "run" : ""}` }),
+    el("div", { class: "grow" },
+      el("div", { class: "name", text: a.agent }),
+      el("div", { class: "faint", text: a.paused ? "Paused" : busy ? `Working · ${a.pending} waiting` : `${a.succeeded} done · ${a.pending} waiting` })),
+    el("button", {
+      class: "btn small", disabled: !!pending,
+      onclick: () => send({ command: a.paused ? "resume" : "pause", agent: a.agent }, `${a.paused ? "Resuming" : "Pausing"} ${a.agent}…`),
+    }, pending ? "Sent" : a.paused ? "Resume" : "Pause"));
+}
+function recentCommands() {
+  const list = state.commands.slice(0, 6);
+  if (!list.length) return null;
+  const label = (c) => ({ kill_on: "Stop everything", kill_off: "Turn back on", interrupt: "Interrupt run", pause: `Pause ${c.agent}`, resume: `Resume ${c.agent}`,
+    approve: "Approve video", reject: "Reject video", posted: "Mark as posted", instruction: `Instruction to ${c.agent}`, note: `Note to ${c.agent || "all"}` }[c.command] || c.command);
+  return [
+    el("h2", { class: "section" }, "Your recent commands"),
+    el("div", { class: "card", style: "padding:4px 16px" }, list.map((c) => el("div", { class: "cmd" },
+      el("span", { class: `chip ${c.status === "applied" ? "green" : c.status === "rejected" ? "red" : "amber"}`, text: c.status }),
+      el("div", { class: "grow" }, el("div", { text: label(c) }), el("div", { class: "faint", text: c.result || `sent ${ago(c.created_at)}` }))))),
+  ];
+}
+
+// keyed lists keep playing videos and typed text alive across live updates
+const cards = new Map();
+function keyed(root, items, key, build) {
+  const want = new Set(items.map(key));
+  for (const [k, node] of cards) if (node.isConnected && node.parentNode === root && !want.has(k)) { node.remove(); cards.delete(k); }
+  let prev = null;
+  for (const item of items) {
+    const k = key(item);
+    let node = cards.get(k);
+    if (!node) { node = build(item); cards.set(k, node); }
+    node.update?.(item);
+    if (prev ? prev.nextSibling !== node : root.firstChild !== node) root.insertBefore(node, prev ? prev.nextSibling : root.firstChild);
+    prev = node;
+  }
+}
+function dropCards(prefix) {
+  for (const [k, node] of cards) if (k.startsWith(prefix)) { node.remove(); cards.delete(k); }
+}
+function lazyVideo(box, name) {
+  if (!name) { box.replaceChildren(el("div", { class: "ph", text: DEMO ? "Video preview (demo)" : "Video is uploading from your PC…" })); return; }
+  if (box.dataset.name === name) return;
+  box.dataset.name = name;
+  box.replaceChildren(el("div", { class: "ph", text: "Loading video…" }));
+  api.videoUrl(name).then((url) => {
+    if (box.dataset.name !== name) return;
+    box.replaceChildren(url ? el("video", { src: url, controls: true, playsinline: true, preload: "metadata" }) : el("div", { class: "ph", text: "No preview" }));
+  }).catch((e) => box.replaceChildren(el("div", { class: "ph", text: `Couldn't load video: ${e.message}` })));
+}
+
+function renderReview(root) {
+  if (!state.review.length) {
+    dropCards("review:");
+    root.replaceChildren(el("div", { class: "card empty" }, el("b", { text: "Nothing to review" }), "New videos show up here when the judge passes them."));
+    return;
+  }
+  let list = root.querySelector(".list");
+  if (!list) { root.replaceChildren(el("h2", { class: "section" }, "Waiting for you", el("span", { text: `${state.review.length}` })), (list = el("div", { class: "list" }))); }
+  root.querySelector("h2 span").textContent = String(state.review.length);
+  keyed(list, state.review, (r) => `review:${r.post_id}`, reviewCard);
+}
+function reviewCard(r) {
+  const box = el("div", { class: "video" });
+  const status = el("div");
+  const reason = el("textarea", { placeholder: "What's wrong? (helps the agents learn)", maxlength: "2000", rows: "3" });
+  const rejectBox = el("div", { hidden: true }, el("label", { class: "field" }, el("span", { text: "Reason" }), reason),
+    el("div", { class: "btns" },
+      el("button", { class: "btn ghost", onclick: () => { rejectBox.hidden = true; actions.hidden = false; } }, "Cancel"),
+      el("button", { class: "btn danger", onclick: () => send({ command: "reject", post_id: r.post_id, account_id: r.account_id, body: reason.value.trim() || null }, "Rejecting…") }, "Reject video")));
+  const actions = el("div", { class: "btns" },
+    el("button", { class: "btn", onclick: () => { actions.hidden = true; rejectBox.hidden = false; reason.focus(); } }, "Reject"),
+    el("button", { class: "btn primary", onclick: () => send({ command: "approve", post_id: r.post_id, account_id: r.account_id }, "Approving and scheduling…") }, "Approve & schedule"));
+  const title = el("h3", { class: "title" }), caption = el("p", { class: "caption" }), tags = el("div", { class: "tags" });
+  const node = el("article", { class: "card" },
+    el("div", { class: "row" }, el("span", { class: "chip", text: account(r.account_id) }), el("span", { class: "faint grow ellipsis", text: r.post_id })),
+    title, caption, tags, box, status, actions, rejectBox);
+  node.update = (r2) => {
+    title.textContent = r2.title; caption.textContent = r2.caption || ""; tags.textContent = r2.hashtags || "";
+    lazyVideo(box, r2.video_object);
+    const c = latestFor((x) => x.post_id === r2.post_id && (x.command === "approve" || x.command === "reject"));
+    const waiting = c && c.status === "pending";
+    actions.hidden = waiting || !rejectBox.hidden; if (waiting) rejectBox.hidden = true;
+    status.replaceChildren(
+      waiting ? el("div", { class: "waiting", text: `${c.command === "approve" ? "Approval" : "Rejection"} sent. ${pcOnline() ? "Your PC is applying it…" : "Your PC is offline; it will apply this when it's back."}` }) :
+      c && c.status === "rejected" ? el("div", { class: "waiting bad", text: `Last try didn't work: ${c.result}` }) : "");
+  };
+  return node;
+}
+
+function renderPost(root) {
+  const ready = state.jobs.filter((j) => j.status === "ready");
+  const later = state.jobs.filter((j) => j.status !== "ready");
+  let list = root.querySelector(".list"), up = root.querySelector(".up");
+  if (!list) {
+    root.replaceChildren(el("h2", { class: "section" }, "Ready to post", el("span")), (list = el("div", { class: "list" })),
+      el("h2", { class: "section" }, "Coming up", el("span")), (up = el("div", { class: "card up", style: "padding:4px 16px" })));
+  }
+  const [h1, h2] = root.querySelectorAll("h2 span");
+  h1.textContent = String(ready.length); h2.textContent = String(later.length);
+  if (!ready.length) { dropCards("job:"); list.replaceChildren(el("div", { class: "card empty" }, el("b", { text: "Nothing to post by hand" }), "When a post is due on a platform without an API connection, it lands here with its video and caption.")); }
+  else { list.querySelector(".empty")?.parentNode === list && list.replaceChildren(); keyed(list, ready, (j) => `job:${j.job_id}`, jobCard); }
+  up.replaceChildren(...(later.length ? later.map((j) => el("div", { class: "upcoming" },
+    el("div", { class: "when" }, el("b", { text: clock(j.due_at) }), el("span", { text: day(j.due_at) })),
+    el("div", { class: "grow" },
+      el("div", { class: "ellipsis", style: "font-weight:600", text: j.title || j.post_id }),
+      el("div", { class: "faint ellipsis", text: `${platform(j.platform)} · ${account(j.account_id)}` })),
+    j.status !== "waiting" ? el("span", { class: `chip ${j.status === "failed" ? "red" : "amber"}`, title: j.reason || "", text: j.status }) : null))
+    : [el("div", { class: "empty", text: "Nothing scheduled yet. Approve a video to fill the queue." })]));
+}
+function jobCard(j) {
+  const box = el("div", { class: "video small" });
+  const url = el("input", { type: "url", placeholder: "Link to the live post (optional)" });
+  const status = el("div");
+  const p = PLATFORMS[j.platform] || {};
+  const copy = (text, what) => navigator.clipboard?.writeText(text).then(() => toast(`${what} copied`), () => toast("Couldn't copy on this phone", true));
+  const save = el("button", { class: "btn small", onclick: async () => {
+    try {
+      const href = await api.videoUrl(j.video_object, `${j.post_id.replace(/[^A-Za-z0-9_.-]/g, "_")}_${j.platform}.mp4`);
+      if (href) location.href = href; else toast("Video isn't available yet", true);
+    } catch (e) { toast(`Couldn't get video: ${e.message}`, true); }
+  } }, "Save video");
+  const doneBtns = el("div", { class: "btns" },
+    el("button", { class: "btn primary", onclick: () => send({ command: "posted", job_id: j.job_id, body: url.value.trim() || null }, "Marking as posted…") }, "I posted it"));
+  const node = el("article", { class: "card" },
+    el("div", { class: "row" }, el("span", { class: "chip cyan", text: platform(j.platform) }), el("span", { class: "chip", text: account(j.account_id) }),
+      el("span", { class: "faint grow", style: "text-align:right", text: `due ${ago(j.due_at)}` })),
+    el("h3", { class: "title", text: j.title || j.post_id }),
+    j.text ? el("p", { class: "caption", text: j.text }) : null,
+    box,
+    el("div", { class: "tools" }, save,
+      j.text ? el("button", { class: "btn small", onclick: () => copy(j.text, "Caption") }, "Copy caption") : null,
+      j.title && j.platform === "youtube_shorts" ? el("button", { class: "btn small", onclick: () => copy(j.title, "Title") }, "Copy title") : null,
+      p.open ? el("a", { class: "btn small", href: p.open, target: "_blank", rel: "noopener noreferrer" }, `Open ${p.name}`) : null),
+    el("label", { class: "field" }, el("span", { text: "After you post it" }), url),
+    status, doneBtns);
+  node.update = (j2) => {
+    lazyVideo(box, j2.video_object);
+    const c = latestFor((x) => x.command === "posted" && x.job_id === j2.job_id);
+    const waiting = c && c.status === "pending";
+    doneBtns.hidden = waiting;
+    status.replaceChildren(waiting ? el("div", { class: "waiting", text: "Sent. It leaves this list once your PC records it." })
+      : c && c.status === "rejected" ? el("div", { class: "waiting bad", text: `Didn't work: ${c.result}` }) : "");
+  };
+  return node;
+}
+
+function renderActivity(root) {
+  const tone = (t) => /fail|error|escalat|lease_lost|rejected/.test(t) ? "bad" : /succeed|passed|applied|approved|posted/.test(t) ? "ok" : /pause|interrupt|kill|block/.test(t) ? "warn" : "";
+  root.replaceChildren(
+    el("h2", { class: "section" }, "Latest", el("span", { text: "live" })),
+    el("div", { class: "card", style: "padding:4px 16px" },
+      state.events.length ? state.events.map((e) => el("div", { class: "event" },
+        el("i", { class: tone(e.type) }),
+        el("div", {},
+          el("p", { text: e.message }),
+          el("div", { class: "faint" }, el("span", { style: "text-transform:capitalize", text: e.agent }), ` · ${ago(e.time)}`))))
+        : el("div", { class: "empty", text: "No activity yet." })));
+}
+
+let talkKind = "instruction";
+function renderTalk(root) {
+  if (root.querySelector("form")) { root.querySelector(".hist").replaceChildren(...talkHistory()); return; }
+  const agent = el("select", { name: "agent" }, el("option", { value: "all", text: "All agents (note only)" }), AGENTS.map((a) => el("option", { value: a, text: a[0].toUpperCase() + a.slice(1) })));
+  agent.value = "scriptwriter";
+  const body = el("textarea", { name: "body", maxlength: "2000", placeholder: "e.g. Open with a question, and keep shorts under 45 seconds this week.", required: true });
+  const seg = el("div", { class: "seg", role: "group", "aria-label": "Message type" },
+    ["instruction", "note"].map((k) => el("button", { type: "button", "aria-pressed": String(k === talkKind), onclick: (ev) => {
+      talkKind = k; for (const b of seg.children) b.setAttribute("aria-pressed", String(b === ev.currentTarget));
+      help.textContent = k === "instruction" ? "The agent follows it on its next task." : "Background the agent keeps in mind.";
+    } }, k === "instruction" ? "Instruction" : "Note")));
+  const help = el("p", { class: "faint", style: "margin:8px 2px 0", text: "The agent follows it on its next task." });
+  const form = el("form", { class: "card", onsubmit: async (ev) => {
+    ev.preventDefault();
+    const text = body.value.trim();
+    if (!text) return;
+    if (talkKind === "instruction" && agent.value === "all") { toast("Pick one agent for an instruction, or send a note to all.", true); return; }
+    if (await send({ command: talkKind, agent: agent.value, body: text }, "Message sent.")) body.value = "";
+  } },
+    seg, help,
+    el("label", { class: "field" }, el("span", { text: "To" }), agent),
+    el("label", { class: "field" }, el("span", { text: "Message" }), body),
+    el("div", { class: "btns" }, el("button", { class: "btn primary", type: "submit" }, "Send")));
+  root.replaceChildren(form, el("h2", { class: "section" }, "Sent"), el("div", { class: "card hist", style: "padding:4px 16px" }, ...talkHistory()));
+}
+function talkHistory() {
+  const sent = state.commands.filter((c) => c.command === "instruction" || c.command === "note").slice(0, 10);
+  return sent.length ? sent.map((c) => el("div", { class: "cmd" },
+    el("span", { class: `chip ${c.status === "applied" ? "green" : c.status === "rejected" ? "red" : "amber"}`, text: c.status }),
+    el("div", { class: "grow" }, el("div", { style: "overflow-wrap:anywhere", text: c.body }), el("div", { class: "faint", text: `${c.command} to ${c.agent || "all"} · ${ago(c.created_at)}` }))))
+    : [el("div", { class: "empty", text: "Nothing sent yet." })];
+}
+
+const VIEWS = { home: renderHome, review: renderReview, post: renderPost, activity: renderActivity, talk: renderTalk };
+function render() {
+  renderHeader();
+  VIEWS[view]($(`[data-view="${view}"]`));
+}
+function go(name) {
+  view = name;
+  for (const s of document.querySelectorAll("[data-view]")) s.hidden = s.dataset.view !== name;
+  for (const b of document.querySelectorAll("[data-tab]")) {
+    if (b.dataset.tab === name) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+  }
+  $("#view-title").textContent = TITLES[name];
+  store.set("agency.view", name);
+  render();
+  window.scrollTo({ top: 0 });
+}
+
+// ---------- loading ----------
+const KEYS = { agency_status: "status", agency_agents: "agents", agency_review: "review", agency_jobs: "jobs", agency_events: "events", agency_commands: "commands" };
+async function refresh(tables = Object.keys(KEYS)) {
+  try {
+    const results = await Promise.all(tables.map((t) => api.load(t)));
+    tables.forEach((t, i) => { state[KEYS[t]] = results[i]; });
+    announceResults();
+    render();
+  } catch (e) { toast(`Couldn't load: ${e.message}`, true); }
+}
+const queued = new Set();
+let timer = null;
+function onLive(table) {
+  queued.add(table);
+  clearTimeout(timer);
+  timer = setTimeout(() => { const t = [...queued]; queued.clear(); refresh(t); }, 300);
+}
+
+function show(id) {
+  for (const s of ["#setup", "#login", "#not-owner", "#app"]) $(s).hidden = s !== id;
+}
+async function start() {
+  if (DEMO) {
+    document.body.append(el("span", { class: "demo", text: "DEMO" }));
+    api = demoApi();
+  } else {
+    const cfg = store.get("agency.config");
+    if (!cfg || !window.supabase) { show("#setup"); if (!window.supabase) $("#setup-error").textContent = "Couldn't load the Supabase library. Check your connection."; return; }
+    api = supabaseApi(cfg);
+  }
+  const session = await api.session();
+  if (!session) { show("#login"); return; }
+  state.user = session.user;
+  if (!(await api.isOwner(session.user.id).catch(() => false))) {
+    $("#owner-sql").textContent = `insert into public.agency_owners (user_id)\nselect id from auth.users where email = '${session.user.email}'\non conflict do nothing;`;
+    show("#not-owner");
+    return;
+  }
+  show("#app");
+  go(VIEWS[store.get("agency.view")] ? store.get("agency.view") : "home");
+  await refresh();
+  api.live(onLive);
+  setInterval(() => refresh(), 30000); // safety net if live updates drop
+  setInterval(renderHeader, 15000);    // keep "synced 2 min ago" honest
+  document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && refresh());
+}
+
+// ---------- gate screens ----------
+$("#setup-form").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  const f = new FormData(ev.target), url = String(f.get("url")).trim().replace(/\/+$/, ""), key = String(f.get("key")).trim();
+  const err = $("#setup-error");
+  if (!/^https:\/\/[a-z0-9-]+\.supabase\.(co|in)$/i.test(url)) { err.textContent = "That doesn't look like a Supabase project URL (https://xxxx.supabase.co)."; return; }
+  if (/^sb_secret_/.test(key) || jwtRole(key) === "service_role") { err.textContent = "That's the SECRET key. Never put it on a phone. Use the publishable (or anon) key."; return; }
+  if (!/^sb_publishable_/.test(key) && jwtRole(key) !== "anon") { err.textContent = "Use the publishable key (starts with sb_publishable_)."; return; }
+  store.set("agency.config", { url, key });
+  location.reload();
+});
+function jwtRole(key) {
+  try { return JSON.parse(atob(key.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).role; } catch { return null; }
+}
+$("#login-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const f = new FormData(ev.target), btn = ev.target.querySelector("[type=submit]");
+  btn.disabled = true; $("#login-error").textContent = "";
+  try { await api.signIn(String(f.get("email")).trim(), String(f.get("password"))); location.reload(); }
+  catch (e) { $("#login-error").textContent = e.message; btn.disabled = false; }
+});
+$("#change-project").addEventListener("click", () => { store.del("agency.config"); location.reload(); });
+$("#recheck").addEventListener("click", () => location.reload());
+document.addEventListener("click", async (ev) => {
+  if (ev.target.closest("[data-signout]")) { await api.signOut(); location.reload(); }
+});
+for (const b of document.querySelectorAll("[data-tab]")) b.addEventListener("click", () => go(b.dataset.tab));
+$("#menu").addEventListener("click", () => {
+  const close = () => bg.remove();
+  const bg = el("div", { class: "sheet-bg", onclick: (e) => e.target === bg && close() },
+    el("div", { class: "sheet", role: "dialog", "aria-label": "Account" },
+      el("h3", { text: "Account" }),
+      el("p", { class: "muted", style: "margin:0", text: `Signed in as ${state.user?.email || "?"}` }),
+      el("p", { class: "faint", text: "Your PC must run the sync job (python -m content_agency.remote_sync) for changes to reach it." }),
+      el("div", { class: "btns" },
+        el("button", { class: "btn", onclick: () => { close(); refresh(); } }, "Refresh now"),
+        el("button", { class: "btn danger", "data-signout": true }, "Sign out")),
+      el("button", { class: "btn ghost block", style: "margin-top:8px", onclick: close }, "Close")));
+  document.body.append(bg);
+});
+
+if ("serviceWorker" in navigator && !DEMO) navigator.serviceWorker.register("sw.js").catch(() => {});
+start().catch((e) => { show("#login"); $("#login-error").textContent = e.message; });
+</script>
+</body>
+</html>
