@@ -25,7 +25,9 @@
     --nav-h: 64px;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; min-height: 100%; overflow-x: hidden; }
+  /* clip, not hidden: overflow-x:hidden on html+body stops vertical scrolling on some Android browsers */
+  html, body { margin: 0; min-height: 100%; }
+  body { overflow-x: clip; }
   body {
     background: radial-gradient(700px 500px at 90% -10%, rgba(139,123,255,.24), transparent 60%),
                 radial-gradient(600px 500px at -20% 40%, rgba(62,230,208,.12), transparent 60%),
@@ -56,11 +58,12 @@
   .dot.on { background: var(--green); box-shadow: 0 0 0 4px rgba(76,224,138,.16); }
   .dot.off { background: var(--amber); box-shadow: 0 0 0 4px rgba(255,181,71,.14); }
   .iconbtn { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: var(--muted); border: 1px solid var(--edge); background: var(--glass); }
-  main { padding: 16px 0 calc(var(--nav-h) + env(safe-area-inset-bottom) + 24px); }
+  /* main also has class "wrap", whose padding shorthand would zero this out: keep the selector stronger */
+  main.wrap { padding-top: 16px; padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 32px); }
 
   nav.tabs {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 6;
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: max(env(safe-area-inset-bottom), 6px);
     background: rgba(10,13,30,.92); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
     border-top: 1px solid var(--edge);
   }
@@ -113,6 +116,20 @@
   .hero::after { content: ""; position: absolute; width: 220px; height: 220px; right: -70px; top: -90px; border-radius: 50%; background: radial-gradient(circle, rgba(62,230,208,.28), transparent 65%); pointer-events: none; }
   .hero.stopped::after { background: radial-gradient(circle, rgba(255,93,115,.32), transparent 65%); }
   .hero h3 { font: 600 24px/1.15 var(--display); margin: 8px 0 4px; }
+  .orbit { position: absolute; right: 14px; top: 14px; width: 92px; height: 92px; pointer-events: none; }
+  .orbit .planet { position: absolute; inset: 22px; border-radius: 50%;
+    background: radial-gradient(circle at 32% 30%, #bff7ef, #3ee6d0 34%, #5aa8ff 64%, #8b7bff);
+    box-shadow: 0 0 28px rgba(62,230,208,.45), inset -8px -10px 18px rgba(7,9,20,.55); }
+  .hero.stopped .orbit .planet { background: radial-gradient(circle at 32% 30%, #ffd1d8, #ff5d73 45%, #8b2a3c);
+    box-shadow: 0 0 26px rgba(255,93,115,.45), inset -8px -10px 18px rgba(7,9,20,.55); }
+  .orbit .ring { position: absolute; inset: 6px 0; border-radius: 50%; border: 2px solid rgba(238,240,255,.55);
+    transform: rotate(-24deg) scaleY(.36); }
+  .orbit .moon { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: #3ee6d0;
+    box-shadow: 0 0 10px #3ee6d0; top: 50%; left: 50%; margin: -5px; animation: moon 6s linear infinite; }
+  @keyframes moon { from { transform: rotate(0deg) translateX(46px) rotate(0deg) scaleY(1); }
+                    to { transform: rotate(360deg) translateX(46px) rotate(-360deg); } }
+  .hero .chip, .hero h3, .hero p { position: relative; max-width: calc(100% - 96px); }
+  .hero .btns { position: relative; }
   .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
   .stat { text-align: left; padding: 14px; border-radius: 16px; background: var(--glass); border: 1px solid var(--edge); }
   .stat b { display: block; font: 600 26px/1 var(--display); }
@@ -155,7 +172,9 @@
   .cmd + .cmd { border-top: 1px solid var(--edge); }
 
   /* ---------- gate screens, sheet, toast ---------- */
-  .gate { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
+  /* dvh = the height actually visible (browser bars and keyboard excluded); vh is the fallback */
+  .gate { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px 48px; }
+  @media (max-height: 700px) { .gate { place-items: start center; } }
   .gate .card { width: 100%; max-width: 420px; padding: 24px; }
   .gate img { width: 64px; height: 64px; border-radius: 18px; display: block; margin-bottom: 14px; }
   .gate h1 { font: 600 24px/1.15 var(--display); margin: 0 0 6px; }
@@ -431,6 +450,7 @@ function renderHome(root) {
   const upcoming = state.jobs.filter((j) => j.status === "waiting").length;
   root.replaceChildren(
     el("div", { class: `card hero ${killed ? "stopped" : ""}` },
+      el("div", { class: "orbit", "aria-hidden": "true" }, el("div", { class: "ring" }), el("div", { class: "planet" }), el("div", { class: "moon" })),
       el("span", { class: `chip ${killed ? "red" : running ? "cyan" : ""}` }, killed ? "Kill switch on" : running ? `${running} agent${running > 1 ? "s" : ""} working` : "Idle"),
       el("h3", { text: killed ? "Everything is stopped" : running ? "Making your next videos" : "Ready for the next run" }),
       el("p", { class: "muted", style: "margin:0", text: killed ? "No agent will start until you turn it back on." : "Agents research, write, film, edit and check. You only decide." }),
@@ -606,7 +626,7 @@ function jobCard(j) {
   node.update = (j2) => {
     lazyVideo(box, j2.video_object);
     // failed: the platform may already have it, so you check and say; blocked: it must not go out as is
-    problem.replaceChildren(j2.status === "ready" ? "" : el("div", { class: "waiting bad", text: `${j2.status === "failed" ? "Didn't post automatically" : "Blocked"}: ${j2.reason}` }));
+    problem.replaceChildren(j2.status === "ready" ? (j2.reason ? el("div", { class: "waiting", text: j2.reason }) : "") : el("div", { class: "waiting bad", text: `${j2.status === "failed" ? "Didn't post automatically" : "Blocked"}: ${j2.reason}` }));
     posted.textContent = j2.status === "failed" ? "It's live" : "I posted it";
     posted.hidden = j2.status === "blocked";
     const c = latestFor((x) => (x.command === "posted" || x.command === "skip") && x.job_id === j2.job_id);
@@ -769,6 +789,9 @@ $("#menu").addEventListener("click", () => {
   document.body.append(bg);
 });
 
+document.addEventListener("focusin", (ev) => {
+  if (ev.target.matches("input, textarea, select")) setTimeout(() => ev.target.scrollIntoView({ block: "center", behavior: "smooth" }), 300);
+});
 if ("serviceWorker" in navigator && !DEMO) navigator.serviceWorker.register("sw.js").catch(() => {});
 start().catch((e) => { show("#login"); $("#login-error").textContent = e.message; });
 </script>
