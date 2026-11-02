@@ -322,7 +322,8 @@ const day = (iso) => {
   if (d.toDateString() === tmr.toDateString()) return "Tomorrow";
   return d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" });
 };
-const account = (id) => ACCOUNTS[id] || id;
+// accounts added later show as "Cooking Tips" for cooking_tips
+const account = (id) => ACCOUNTS[id] || String(id).replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 const platform = (id) => (PLATFORMS[id] || { name: id }).name;
 
 // ---------- data layer (Supabase, or sample data for ?demo) ----------
