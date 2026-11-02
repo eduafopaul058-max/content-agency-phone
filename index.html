@@ -551,11 +551,12 @@ function reviewCard(r) {
 }
 
 function renderPost(root) {
-  const ready = state.jobs.filter((j) => j.status === "ready");
-  const later = state.jobs.filter((j) => j.status !== "ready");
+  const NEEDS_YOU = ["ready", "failed", "blocked"];
+  const ready = state.jobs.filter((j) => NEEDS_YOU.includes(j.status));
+  const later = state.jobs.filter((j) => !NEEDS_YOU.includes(j.status));
   let list = root.querySelector(".list"), up = root.querySelector(".up");
   if (!list) {
-    root.replaceChildren(el("h2", { class: "section" }, "Ready to post", el("span")), (list = el("div", { class: "list" })),
+    root.replaceChildren(el("h2", { class: "section" }, "Needs you", el("span")), (list = el("div", { class: "list" })),
       el("h2", { class: "section" }, "Coming up", el("span")), (up = el("div", { class: "card up", style: "padding:4px 16px" })));
   }
   const [h1, h2] = root.querySelectorAll("h2 span");
@@ -582,12 +583,18 @@ function jobCard(j) {
       if (href) location.href = href; else toast("Video isn't available yet", true);
     } catch (e) { toast(`Couldn't get video: ${e.message}`, true); }
   } }, "Save video");
-  const doneBtns = el("div", { class: "btns" },
-    el("button", { class: "btn primary", onclick: () => send({ command: "posted", job_id: j.job_id, body: url.value.trim() || null }, "Marking as posted…") }, "I posted it"));
+  const skip = el("button", { class: "btn", onclick: () => {
+    const reason = prompt(`Skip ${platform(j.platform)} for this video? Reason (optional)`, "");
+    if (reason !== null) send({ command: "skip", job_id: j.job_id, body: reason.trim() || null }, "Skipping…");
+  } }, "Skip");
+  const posted = el("button", { class: "btn primary", onclick: () => send({ command: "posted", job_id: j.job_id, body: url.value.trim() || null }, "Marking as posted…") });
+  const doneBtns = el("div", { class: "btns" }, skip, posted);
+  const problem = el("div");
   const node = el("article", { class: "card" },
     el("div", { class: "row" }, el("span", { class: "chip cyan", text: platform(j.platform) }), el("span", { class: "chip", text: account(j.account_id) }),
       el("span", { class: "faint grow", style: "text-align:right", text: `due ${ago(j.due_at)}` })),
     el("h3", { class: "title", text: j.title || j.post_id }),
+    problem,
     j.text ? el("p", { class: "caption", text: j.text }) : null,
     box,
     el("div", { class: "tools" }, save,
@@ -598,7 +605,11 @@ function jobCard(j) {
     status, doneBtns);
   node.update = (j2) => {
     lazyVideo(box, j2.video_object);
-    const c = latestFor((x) => x.command === "posted" && x.job_id === j2.job_id);
+    // failed: the platform may already have it, so you check and say; blocked: it must not go out as is
+    problem.replaceChildren(j2.status === "ready" ? "" : el("div", { class: "waiting bad", text: `${j2.status === "failed" ? "Didn't post automatically" : "Blocked"}: ${j2.reason}` }));
+    posted.textContent = j2.status === "failed" ? "It's live" : "I posted it";
+    posted.hidden = j2.status === "blocked";
+    const c = latestFor((x) => (x.command === "posted" || x.command === "skip") && x.job_id === j2.job_id);
     const waiting = c && c.status === "pending";
     doneBtns.hidden = waiting;
     status.replaceChildren(waiting ? el("div", { class: "waiting", text: "Sent. It leaves this list once your PC records it." })
