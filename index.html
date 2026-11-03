@@ -192,6 +192,10 @@
   #toast div.bad { border-color: rgba(255,93,115,.5); }
   .demo { position: fixed; top: calc(env(safe-area-inset-top) + 4px); right: 8px; z-index: 40; font-size: 10px; font-weight: 700; letter-spacing: .1em; padding: 2px 8px; border-radius: 999px; background: var(--amber); color: #1a1200; }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+  .ceo-log { display: grid; gap: 8px; margin-bottom: 12px; max-height: 52vh; overflow-y: auto; }
+  .bubble { max-width: 85%; padding: 10px 13px; border-radius: 16px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.45; }
+  .bubble.owner { justify-self: end; background: rgba(139,123,255,.22); border: 1px solid rgba(139,123,255,.35); }
+  .bubble.ceo { justify-self: start; background: rgba(0,0,0,.25); border: 1px solid rgba(255,255,255,.1); }
 </style>
 </head>
 <body>
@@ -283,7 +287,7 @@ const PLATFORMS = {
   instagram_reels: { name: "Instagram Reels", open: "https://www.instagram.com/" },
   facebook_reels: { name: "Facebook Reels", open: "https://www.facebook.com/reels/create" },
 };
-const TITLES = { home: "Home", review: "Review", post: "Post", activity: "Activity", talk: "Talk to agents" };
+const TITLES = { home: "Home", review: "Review", post: "Post", activity: "Activity", talk: "Talk to your CEO" };
 const BUCKET = "review-videos";
 const DEMO = new URLSearchParams(location.search).has("demo");
 
@@ -494,6 +498,8 @@ function agencyLabel(c) {
     const r = JSON.parse(c.body || "{}");
     if (r.action === "make") return `Make a video (${account(r.account_id)})`;
     if (r.action === "autopost") return `Auto-post ${r.enabled ? "on" : "off"}`;
+    if (r.action === "ceo") return "Message to your CEO";
+    if (r.action === "ceo_confirm") return "Confirmed for your CEO";
   } catch (e) { /* not JSON: shown as a plain request */ }
   return "Request to the agency";
 }
@@ -593,7 +599,7 @@ function recentCommands() {
       store.set("agency.clearedCommands", String(Math.max(0, ...state.commands.map((c) => c.id)))); render(); } }, "Clear")),
     el("div", { class: "card", style: "padding:4px 16px" }, list.map((c) => el("div", { class: "cmd" },
       el("span", { class: `chip ${c.status === "applied" ? "green" : c.status === "rejected" ? "red" : "amber"}`, text: c.status }),
-      el("div", { class: "grow" }, el("div", { text: label(c) }), el("div", { class: "faint", text: c.result || `sent ${ago(c.created_at)}` }))))),
+      el("div", { class: "grow" }, el("div", { text: label(c) }), el("div", { class: "faint", text: ceoAnswer(c)?.reply || c.result || `sent ${ago(c.created_at)}` }))))),
   ];
 }
 
@@ -749,9 +755,59 @@ function renderActivity(root) {
         : el("div", { class: "empty", text: state.events.length ? "All clear. New activity appears here." : "No activity yet." })));
 }
 
+// ---------- CEO: the owner's personal agent, answering through the PC ----------
+function ceoRequest(c) {
+  if (c.command !== "instruction" || c.agent !== "agency") return null;
+  try { const r = JSON.parse(c.body || "{}"); return r.action === "ceo" || r.action === "ceo_confirm" ? r : null; } catch (e) { return null; }
+}
+function ceoAnswer(c) {
+  if (!ceoRequest(c) || !c.result) return null;
+  try { const a = JSON.parse(c.result); return typeof a === "object" && a ? a : { reply: c.result, confirm: [] }; }
+  catch (e) { return { reply: c.result, confirm: [] }; }
+}
+const CEO_WORDS = { stop_everything: "Stop everything", autopost: "Change automatic posting", approve_video: "Approve the video", reject_video: "Reject the video" };
+const confirmedHere = new Set();
+function ceoLog() {
+  const chat = state.commands.filter(ceoRequest).slice(0, 12).reverse();
+  if (!chat.length) return [el("div", { class: "empty", text: 'Ask anything: "how are the channels doing?", "make a Gospel TV video about Daniel", "pause Money Lecture".' })];
+  return chat.flatMap((c) => {
+    const r = ceoRequest(c), a = ceoAnswer(c);
+    const out = [];
+    if (r.action === "ceo") out.push(el("div", { class: "bubble owner", text: r.message }));
+    if (c.status === "pending") out.push(el("div", { class: "bubble ceo faint", text: pcOnline() ? "Thinking…" : "Waiting for your PC to come online…" }));
+    else if (a) out.push(el("div", { class: "bubble ceo", text: c.status === "rejected" ? `Not done: ${c.result}` : a.reply }));
+    for (const item of (a?.confirm || [])) {
+      const key = `${c.id}:${JSON.stringify(item)}`;
+      if (confirmedHere.has(key)) continue;
+      out.push(el("div", { class: "btns", style: "margin:0" },
+        el("button", { class: "btn primary", onclick: () => { confirmedHere.add(key);
+          send({ command: "instruction", agent: "agency", body: JSON.stringify({ action: "ceo_confirm", item }) }, "Confirmed. Your PC will do it shortly."); } },
+          `Confirm: ${CEO_WORDS[item.name] || item.name}`),
+        el("button", { class: "btn", onclick: () => { confirmedHere.add(key); render(); } }, "Cancel")));
+    }
+    return out;
+  });
+}
+function ceoCard() {
+  const box = el("textarea", { maxlength: "1900", placeholder: "Message your CEO…", required: true });
+  return el("form", { class: "card ceo", onsubmit: async (ev) => {
+    ev.preventDefault();
+    const message = box.value.trim();
+    if (!message) return;
+    if (await send({ command: "instruction", agent: "agency", body: JSON.stringify({ action: "ceo", message }) }, "Sent to your CEO.")) box.value = "";
+  } },
+    el("div", { class: "ceo-log" }, ...ceoLog()),
+    el("label", { class: "field" }, el("span", { text: "Message" }), box),
+    el("div", { class: "btns" }, el("button", { class: "btn primary", type: "submit" }, "Send")),
+    el("p", { class: "faint", style: "margin:8px 2px 0", text: "Big actions wait for your Confirm tap. It acts only through the agency's own controls." }));
+}
+
 let talkKind = "instruction";
 function renderTalk(root) {
-  if (root.querySelector("form")) { root.querySelector(".hist").replaceChildren(...talkHistory()); return; }
+  if (root.querySelector("form")) {
+    root.querySelector(".ceo-log").replaceChildren(...ceoLog());
+    root.querySelector(".hist").replaceChildren(...talkHistory()); return;
+  }
   const agent = el("select", { name: "agent" }, el("option", { value: "all", text: "All agents (note only)" }), AGENTS.map((a) => el("option", { value: a, text: a[0].toUpperCase() + a.slice(1) })));
   agent.value = "scriptwriter";
   const body = el("textarea", { name: "body", maxlength: "2000", placeholder: "e.g. Open with a question, and keep shorts under 45 seconds this week.", required: true });
@@ -772,10 +828,12 @@ function renderTalk(root) {
     el("label", { class: "field" }, el("span", { text: "To" }), agent),
     el("label", { class: "field" }, el("span", { text: "Message" }), body),
     el("div", { class: "btns" }, el("button", { class: "btn primary", type: "submit" }, "Send")));
-  root.replaceChildren(form, el("h2", { class: "section" }, "Sent"), el("div", { class: "card hist", style: "padding:4px 16px" }, ...talkHistory()));
+  root.replaceChildren(el("h2", { class: "section" }, "Your CEO"), ceoCard(),
+    el("h2", { class: "section" }, "Or tell one agent directly"), form,
+    el("h2", { class: "section" }, "Sent"), el("div", { class: "card hist", style: "padding:4px 16px" }, ...talkHistory()));
 }
 function talkHistory() {
-  const sent = state.commands.filter((c) => c.command === "instruction" || c.command === "note").slice(0, 10);
+  const sent = state.commands.filter((c) => (c.command === "instruction" && c.agent !== "agency") || c.command === "note").slice(0, 10);
   return sent.length ? sent.map((c) => el("div", { class: "cmd" },
     el("span", { class: `chip ${c.status === "applied" ? "green" : c.status === "rejected" ? "red" : "amber"}`, text: c.status }),
     el("div", { class: "grow" }, el("div", { style: "overflow-wrap:anywhere", text: c.body }), el("div", { class: "faint", text: `${c.command} to ${c.agent || "all"} · ${ago(c.created_at)}` }))))
