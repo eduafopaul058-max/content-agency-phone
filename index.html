@@ -110,6 +110,7 @@
   label.field > span { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
   .bar { height: 6px; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; margin: 6px 0 4px; }
   .bar span { display: block; height: 100%; background: linear-gradient(90deg, var(--violet), var(--cyan)); }
+  .clear { margin-left: auto; font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--edge-hi); background: transparent; color: var(--muted); cursor: pointer; }
   .empty { text-align: center; padding: 34px 16px; color: var(--muted); }
   .empty b { display: block; color: var(--text); font: 600 17px var(--display); margin-bottom: 4px; }
 
@@ -583,12 +584,13 @@ function agentRow(a) {
     }, pending ? "Sent" : a.paused ? "Resume" : "Pause"));
 }
 function recentCommands() {
-  const list = state.commands.slice(0, 6);
+  const list = state.commands.filter((c) => c.id > Number(store.get("agency.clearedCommands") || 0)).slice(0, 6);
   if (!list.length) return null;
   const label = (c) => ({ kill_on: "Stop everything", kill_off: "Turn back on", interrupt: "Interrupt run", pause: `Pause ${c.agent}`, resume: `Resume ${c.agent}`,
     approve: "Approve video", reject: "Reject video", posted: "Mark as posted", instruction: c.agent === "agency" ? agencyLabel(c) : `Instruction to ${c.agent}`, note: `Note to ${c.agent || "all"}` }[c.command] || c.command);
   return [
-    el("h2", { class: "section" }, "Your recent commands"),
+    el("h2", { class: "section" }, "Your recent commands", el("button", { class: "clear", onclick: () => {
+      store.set("agency.clearedCommands", String(Math.max(0, ...state.commands.map((c) => c.id)))); render(); } }, "Clear")),
     el("div", { class: "card", style: "padding:4px 16px" }, list.map((c) => el("div", { class: "cmd" },
       el("span", { class: `chip ${c.status === "applied" ? "green" : c.status === "rejected" ? "red" : "amber"}`, text: c.status }),
       el("div", { class: "grow" }, el("div", { text: label(c) }), el("div", { class: "faint", text: c.result || `sent ${ago(c.created_at)}` }))))),
@@ -731,17 +733,20 @@ function jobCard(j) {
   return node;
 }
 
+// "Clear" hides what has been seen on this phone; nothing is deleted
+const shownEvents = () => state.events.filter((e) => e.id > Number(store.get("agency.clearedEvents") || 0));
 function renderActivity(root) {
   const tone = (t) => /fail|error|escalat|lease_lost|rejected/.test(t) ? "bad" : /succeed|passed|applied|approved|posted/.test(t) ? "ok" : /pause|interrupt|kill|block/.test(t) ? "warn" : "";
   root.replaceChildren(
-    el("h2", { class: "section" }, "Latest", el("span", { text: "live" })),
+    el("h2", { class: "section" }, "Latest", el("button", { class: "clear", onclick: () => {
+      store.set("agency.clearedEvents", String(Math.max(0, ...state.events.map((e) => e.id)))); render(); } }, "Clear")),
     el("div", { class: "card", style: "padding:4px 16px" },
-      state.events.length ? state.events.map((e) => el("div", { class: "event" },
+      shownEvents().length ? shownEvents().map((e) => el("div", { class: "event" },
         el("i", { class: tone(e.type) }),
         el("div", {},
           el("p", { text: e.message }),
           el("div", { class: "faint" }, el("span", { style: "text-transform:capitalize", text: e.agent }), ` · ${ago(e.time)}`))))
-        : el("div", { class: "empty", text: "No activity yet." })));
+        : el("div", { class: "empty", text: state.events.length ? "All clear. New activity appears here." : "No activity yet." })));
 }
 
 let talkKind = "instruction";
