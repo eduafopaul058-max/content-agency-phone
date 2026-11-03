@@ -328,7 +328,11 @@ const account = (id) => ACCOUNTS[id] || String(id).replace(/_/g, " ").replace(/\
 const platform = (id) => (PLATFORMS[id] || { name: id }).name;
 
 // ---------- data layer (Supabase, or sample data for ?demo) ----------
-const state = { status: null, agents: [], review: [], jobs: [], events: [], commands: [], user: null };
+const state = { status: null, agents: [], review: [], jobs: [], events: [], commands: [], posts: [], user: null };
+const MAKING = ["draft", "researched", "scripted", "rendering", "rendered", "qc_running", "qc_passed"];
+const STATE_WORDS = { draft: "Planned", researched: "Researched", scripted: "Script written", rendering: "Making the video",
+  rendered: "Video made", qc_running: "Checking", qc_passed: "Checked" };
+const AUTOPOST = "autopost"; // the auto-post switch arrives as an extra agents row (paused = off)
 let api = null;
 
 function supabaseApi(cfg) {
@@ -349,6 +353,8 @@ function supabaseApi(cfg) {
         case "agency_jobs": return must(await sb.from(table).select("*").in("status", ["ready", "waiting", "blocked", "failed"]).order("due_at").limit(120));
         case "agency_events": return must(await sb.from(table).select("*").order("id", { ascending: false }).limit(80));
         case "agency_commands": return must(await sb.from(table).select("*").order("id", { ascending: false }).limit(40));
+        case "agency_posts": return must(await sb.from(table).select("*").in("state", MAKING)
+          .gte("updated_at", new Date(Date.now() - 12 * 3600000).toISOString()).order("updated_at", { ascending: false }).limit(20));
       }
     },
     async command(row) { return must(await sb.from("agency_commands").insert(row).select().single()); },
@@ -390,7 +396,10 @@ function demoApi() {
       { id: 1, time: iso(-80), agent: "planner", type: "task_succeeded", message: "Planned 4 posts for fun_facts" },
     ],
     agency_commands: [{ id: 1, created_at: iso(-30), command: "pause", agent: "researcher", body: null, status: "applied", result: "paused researcher" }],
+    agency_posts: [{ post_id: "gospel_tv-1:post-1", account_id: "gospel_tv", state: "scripted", title: "Elijah on Mount Carmel", updated_at: iso(-2) }],
   };
+  data.agency_agents.push({ agent: "autopost", synced_at: iso(-0.2), paused: true, can_run: false, running: 0, pending: 0, succeeded: 0 });
+  data.agency_events.unshift({ id: 6, time: iso(-0.5), agent: "video", type: "agent_progress", message: "Clip 4/12: fire falling on an altar (checked)", payload: { post_id: "gospel_tv-1:post-1" } });
   let onChange = () => {};
   return {
     async session() { return { user: { id: "demo", email: "owner@example.com" } }; },
@@ -470,10 +479,75 @@ function renderHome(root) {
         }, state.status?.interrupt_requested ? "Interrupt pending" : "Interrupt run"))),
     el("div", { class: "stats" },
       stat(state.review.length, "to review", "review"), stat(ready, "ready to post", "post"), stat(upcoming, "coming up", "post")),
+    makeCard(), autopostCard(), beingMade(),
     el("h2", { class: "section" }, "Agents", el("span", { text: state.agents[0] ? `updated ${ago(state.agents[0].synced_at)}` : "" })),
     el("div", { class: "card", style: "padding:4px 16px" },
-      state.agents.length ? state.agents.map(agentRow) : el("div", { class: "empty", text: "No agent status yet." })),
+      realAgents().length ? realAgents().map(agentRow) : el("div", { class: "empty", text: "No agent status yet." })),
     recentCommands());
+}
+const realAgents = () => state.agents.filter((a) => a.agent !== AUTOPOST);
+function agencyLabel(c) {
+  try {
+    const r = JSON.parse(c.body || "{}");
+    if (r.action === "make") return `Make a video (${account(r.account_id)})`;
+    if (r.action === "autopost") return `Auto-post ${r.enabled ? "on" : "off"}`;
+  } catch (e) { /* not JSON: shown as a plain request */ }
+  return "Request to the agency";
+}
+function makeCard() {
+  const acct = el("select", { "aria-label": "Account" }, ...Object.entries(ACCOUNTS).map(([id, name]) => el("option", { value: id, text: name })));
+  acct.value = store.get("agency.makeAccount") || "gospel_tv";
+  const topic = el("input", { type: "text", maxlength: "120", placeholder: "Optional: e.g. Elijah and the fire on Mount Carmel" });
+  const len = el("select", { "aria-label": "Length" }, el("option", { value: "", text: "Usual length" }),
+    el("option", { value: "30", text: "30 seconds" }), el("option", { value: "60", text: "60 seconds" }), el("option", { value: "120", text: "2 minutes" }));
+  const pending = latestFor((c) => c.agent === "agency" && c.status === "pending" && (c.body || "").includes('"make"'));
+  return el("div", { class: "card", style: "margin-top:14px" },
+    el("h3", { style: "margin:0 0 4px", text: "Make a video" }),
+    el("p", { class: "muted", style: "margin:0", text: "Your PC makes it now (5-20 minutes). It appears under Review." }),
+    el("label", { class: "field" }, el("span", { text: "Account" }), acct),
+    el("label", { class: "field" }, el("span", { text: "Topic" }), topic),
+    el("label", { class: "field" }, el("span", { text: "Length" }), len),
+    el("div", { class: "btns" }, el("button", {
+      class: "btn primary", disabled: !!pending || !pcOnline(),
+      onclick: () => {
+        store.set("agency.makeAccount", acct.value);
+        send({ command: "instruction", agent: "agency", body: JSON.stringify({ action: "make", account_id: acct.value,
+          topic: topic.value.trim(), length: len.value ? Number(len.value) : null }) }, "Asked your PC to make it…");
+      },
+    }, pending ? "Waiting for PC…" : !pcOnline() ? "PC offline" : "Make it")));
+}
+function autopostCard() {
+  const row = state.agents.find((a) => a.agent === AUTOPOST);
+  const on = !!row && !row.paused;
+  const pending = latestFor((c) => c.agent === "agency" && c.status === "pending" && (c.body || "").includes('"autopost"'));
+  return el("div", { class: "card", style: "margin-top:14px" },
+    el("h3", { style: "margin:0 0 4px", text: `Automatic posting: ${on ? "On" : "Off"}` }),
+    el("p", { class: "muted", style: "margin:0", text: on ? "Videos you approve upload to YouTube by themselves at their time."
+      : "You post approved videos yourself. Only videos you approve are ever posted." }),
+    el("div", { class: "btns" }, el("button", {
+      class: `btn ${on ? "" : "primary"}`, disabled: !!pending || !row,
+      onclick: () => {
+        if (!on && !confirm("Turn on automatic posting? Videos you approve will upload to YouTube by themselves.")) return;
+        send({ command: "instruction", agent: "agency", body: JSON.stringify({ action: "autopost", enabled: !on }) },
+          on ? "Turning automatic posting off…" : "Turning automatic posting on…");
+      },
+    }, pending ? "Waiting for PC…" : on ? "Turn off" : "Turn on")));
+}
+function beingMade() {
+  const latest = (postId) => state.events.find((e) => e.type === "agent_progress" && e.payload && e.payload.post_id === postId);
+  return [
+    el("h2", { class: "section" }, "Being made"),
+    el("div", { class: "card", style: "padding:4px 16px" },
+      state.posts.length ? state.posts.map((p) => {
+        const step = latest(p.post_id);
+        return el("div", { class: "agent" },
+          el("span", { class: "pulse run" }),
+          el("div", { class: "grow" },
+            el("div", { class: "name", text: p.title || p.post_id }),
+            el("div", { class: "faint", text: `${account(p.account_id)} · ${STATE_WORDS[p.state] || p.state}` }),
+            step ? el("div", { class: "faint", text: `${step.agent}: ${step.message} · ${ago(step.time)}` }) : null));
+      }) : el("div", { class: "empty", text: "Nothing is being made right now." })),
+  ];
 }
 function stat(n, label, tab) {
   return el("button", { class: "stat", onclick: () => go(tab) }, el("b", { text: String(n) }), el("span", { text: label }));
@@ -495,7 +569,7 @@ function recentCommands() {
   const list = state.commands.slice(0, 6);
   if (!list.length) return null;
   const label = (c) => ({ kill_on: "Stop everything", kill_off: "Turn back on", interrupt: "Interrupt run", pause: `Pause ${c.agent}`, resume: `Resume ${c.agent}`,
-    approve: "Approve video", reject: "Reject video", posted: "Mark as posted", instruction: `Instruction to ${c.agent}`, note: `Note to ${c.agent || "all"}` }[c.command] || c.command);
+    approve: "Approve video", reject: "Reject video", posted: "Mark as posted", instruction: c.agent === "agency" ? agencyLabel(c) : `Instruction to ${c.agent}`, note: `Note to ${c.agent || "all"}` }[c.command] || c.command);
   return [
     el("h2", { class: "section" }, "Your recent commands"),
     el("div", { class: "card", style: "padding:4px 16px" }, list.map((c) => el("div", { class: "cmd" },
@@ -704,7 +778,7 @@ function go(name) {
 }
 
 // ---------- loading ----------
-const KEYS = { agency_status: "status", agency_agents: "agents", agency_review: "review", agency_jobs: "jobs", agency_events: "events", agency_commands: "commands" };
+const KEYS = { agency_status: "status", agency_agents: "agents", agency_review: "review", agency_jobs: "jobs", agency_events: "events", agency_commands: "commands", agency_posts: "posts" };
 async function refresh(tables = Object.keys(KEYS)) {
   try {
     const results = await Promise.all(tables.map((t) => api.load(t)));
