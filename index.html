@@ -108,6 +108,8 @@
   textarea { min-height: 96px; resize: vertical; }
   label.field { display: block; margin-top: 14px; }
   label.field > span { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+  .bar { height: 6px; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; margin: 6px 0 4px; }
+  .bar span { display: block; height: 100%; background: linear-gradient(90deg, var(--violet), var(--cyan)); }
   .empty { text-align: center; padding: 34px 16px; color: var(--muted); }
   .empty b { display: block; color: var(--text); font: 600 17px var(--display); margin-bottom: 4px; }
 
@@ -533,6 +535,18 @@ function autopostCard() {
       },
     }, pending ? "Waiting for PC…" : on ? "Turn off" : "Turn on")));
 }
+// Typical minutes per stage (the PC dashboard uses this PC's real timings; the phone uses these).
+const STAGE_MIN = { researcher: 1, scriptwriter: 1.5, video: 10, judge: 0.2 };
+const STAGE_OF = { draft: "researcher", researched: "scriptwriter", scripted: "video", rendering: "video",
+  rendered: "judge", qc_running: "judge", qc_passed: "judge" };
+function timeLeft(state, clip) {
+  const order = ["researcher", "scriptwriter", "video", "judge"], stage = STAGE_OF[state] || "video";
+  let here = STAGE_MIN[stage];
+  if (stage === "video" && clip) here *= Math.max(0, 1 - Number(clip[1]) / Number(clip[2])) * 0.8 + 0.2;
+  const total = here + order.slice(order.indexOf(stage) + 1).reduce((n, s) => n + STAGE_MIN[s], 0);
+  const m = Math.max(1, Math.round(total));
+  return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`;
+}
 function beingMade() {
   const latest = (postId) => state.events.find((e) => e.type === "agent_progress" && e.payload && e.payload.post_id === postId);
   return [
@@ -540,11 +554,14 @@ function beingMade() {
     el("div", { class: "card", style: "padding:4px 16px" },
       state.posts.length ? state.posts.map((p) => {
         const step = latest(p.post_id);
+        const clip = /^Clip (\d+)\/(\d+)/.exec(step ? step.message : "");
+        const pct = clip ? Math.round(100 * Number(clip[1]) / Number(clip[2])) : null;
         return el("div", { class: "agent" },
           el("span", { class: "pulse run" }),
           el("div", { class: "grow" },
             el("div", { class: "name", text: p.title || p.post_id }),
-            el("div", { class: "faint", text: `${account(p.account_id)} · ${STATE_WORDS[p.state] || p.state}` }),
+            el("div", { class: "faint", text: `${account(p.account_id)} · ${STATE_WORDS[p.state] || p.state} · about ${timeLeft(p.state, clip)} left` }),
+            pct != null ? el("div", { class: "bar" }, el("span", { style: `width:${pct}%` })) : null,
             step ? el("div", { class: "faint", text: `${step.agent}: ${step.message} · ${ago(step.time)}` }) : null));
       }) : el("div", { class: "empty", text: "Nothing is being made right now." })),
   ];
