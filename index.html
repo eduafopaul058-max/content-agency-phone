@@ -132,8 +132,8 @@
   @keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 45%, transparent); } 100% { box-shadow: 0 0 0 8px transparent; } }
 
   /* ---------- review / post ---------- */
-  .video { position: relative; margin: 14px -16px 0; background: #000; height: min(58vh, 560px); display: grid; place-items: center; overflow: hidden; }
-  .video.small { height: min(40vh, 360px); }
+  /* tall enough for a whole 9:16 short at phone width, never taller than the screen */
+  .video { position: relative; margin: 14px -16px 0; background: #000; height: min(80vh, calc(100vw * 16 / 9)); display: grid; place-items: center; overflow: hidden; }
   .video video { width: 100%; height: 100%; object-fit: contain; background: #000; }
   .video .ph { color: #a1a1aa; font-size: 14px; text-align: center; padding: 16px; }
   .title { font-size: 18px; font-weight: 650; line-height: 1.3; margin: 10px 0 0; }
@@ -259,10 +259,10 @@
 <script>
 "use strict";
 // ---------------------------------------------------------------------------
-// Everything shown here comes from the Supabase mirror that the PC's sync job
+// Everything shown here comes from the Supabase mirror that the agency's sync job
 // (python -m content_agency.remote_sync) keeps up to date. Buttons never change
 // anything directly: they queue a row in agency_commands, which only owners may
-// insert (row-level security), and the PC applies it with a remote:<you> actor.
+// insert (row-level security), and the agency applies it with a remote:<you> actor.
 // All remote text is rendered as text, never as HTML.
 // ---------------------------------------------------------------------------
 const AGENTS = ["planner", "researcher", "scriptwriter", "video", "judge"];
@@ -416,7 +416,7 @@ async function send(row, okText) {
     const c = await api.command(row);
     state.commands = [c, ...state.commands.filter((x) => x.id !== c.id)];
     mine.add(c.id);
-    toast(okText || "Sent. Your PC will apply it shortly.");
+    toast(okText || "Sent. The agency picks it up at its next check.");
     render();
     return c;
   } catch (e) { toast(`Couldn't send: ${e.message}`, true); }
@@ -434,12 +434,14 @@ const latestFor = (pred) => state.commands.find(pred);
 
 // ---------- rendering ----------
 let view = "home";
-function pcOnline() { return state.status && Date.now() - new Date(state.status.synced_at) < 120000; }
+// the cloud checks in every 15 minutes, so only a longer gap means something is wrong
+const CHECK_MINUTES = 15;
+function pcOnline() { return state.status && Date.now() - new Date(state.status.synced_at) < (CHECK_MINUTES + 5) * 60000; }
 function renderHeader() {
   const s = $("#pc-status");
   s.replaceChildren(
     el("span", { class: `dot ${pcOnline() ? "on" : state.status ? "off" : ""}` }),
-    !state.status ? "Waiting for your PC's first sync" : pcOnline() ? `PC online · synced ${ago(state.status.synced_at)}` : `PC offline · last seen ${ago(state.status.synced_at)}`
+    !state.status ? "Waiting for the agency's first check-in" : pcOnline() ? `Agency running · checked in ${ago(state.status.synced_at)}` : `Agency late · last check-in ${ago(state.status.synced_at)}`
   );
   const ready = state.jobs.filter((j) => j.status === "ready").length;
   for (const [id, n] of [["#badge-review", state.review.length], ["#badge-post", ready]]) {
@@ -466,7 +468,7 @@ function renderHome(root) {
             if (!killed && !confirm("Stop every agent now?")) return;
             send({ command: killed ? "kill_off" : "kill_on" }, killed ? "Turning agents back on…" : "Stopping everything…");
           },
-        }, killCmd ? "Waiting for PC…" : killed ? "Turn back on" : "Stop everything"),
+        }, killCmd ? "Waiting for the agency…" : killed ? "Turn back on" : "Stop everything"),
         el("button", {
           class: "btn", disabled: !!killed || !state.status || !!state.status?.interrupt_requested,
           onclick: () => confirm("Stop the run that's in progress now?") && send({ command: "interrupt" }, "Stopping this run…"),
@@ -499,18 +501,18 @@ function makeCard() {
   const pending = latestFor((c) => c.agent === "agency" && c.status === "pending" && (c.body || "").includes('"make"'));
   return el("div", { class: "card", style: "margin-top:14px" },
     el("h3", { style: "margin:0 0 4px", text: "Make a video" }),
-    el("p", { class: "muted", style: "margin:0", text: "Your PC makes it now (5-20 minutes). It appears under Review." }),
+    el("p", { class: "muted", style: "margin:0", text: "The agency starts it at its next check (within 15 minutes) and takes 5-20 minutes to make it. It appears under Review." }),
     el("label", { class: "field" }, el("span", { text: "Account" }), acct),
     el("label", { class: "field" }, el("span", { text: "Topic" }), topic),
     el("label", { class: "field" }, el("span", { text: "Length" }), len),
     el("div", { class: "btns" }, el("button", {
-      class: "btn primary", disabled: !!pending || !pcOnline(),
+      class: "btn primary", disabled: !!pending,
       onclick: () => {
         store.set("agency.makeAccount", acct.value);
         send({ command: "instruction", agent: "agency", body: JSON.stringify({ action: "make", account_id: acct.value,
-          topic: topic.value.trim(), length: len.value ? Number(len.value) : null }) }, "Asked your PC to make it…");
+          topic: topic.value.trim(), length: len.value ? Number(len.value) : null }) }, "Asked the agency to make it…");
       },
-    }, pending ? "Waiting for PC…" : !pcOnline() ? "PC offline" : "Make it")));
+    }, pending ? "Waiting for the agency…" : "Make it")));
 }
 function autopostCard() {
   const row = state.agents.find((a) => a.agent === AUTOPOST);
@@ -527,9 +529,9 @@ function autopostCard() {
         send({ command: "instruction", agent: "agency", body: JSON.stringify({ action: "autopost", enabled: !on }) },
           on ? "Turning automatic posting off…" : "Turning automatic posting on…");
       },
-    }, pending ? "Waiting for PC…" : on ? "Turn off" : "Turn on")));
+    }, pending ? "Waiting for the agency…" : on ? "Turn off" : "Turn on")));
 }
-// Typical minutes per stage (the PC dashboard uses this PC's real timings; the phone uses these).
+// Typical minutes per stage (the desktop dashboard uses real timings; the phone uses these).
 const STAGE_MIN = { researcher: 1, scriptwriter: 1.5, video: 10, judge: 0.2 };
 const STAGE_OF = { draft: "researcher", researched: "scriptwriter", scripted: "video", rendering: "video",
   rendered: "judge", qc_running: "judge", qc_passed: "judge" };
@@ -609,7 +611,7 @@ function dropCards(prefix) {
   for (const [k, node] of cards) if (k.startsWith(prefix)) { node.remove(); cards.delete(k); }
 }
 function lazyVideo(box, name) {
-  if (!name) { box.replaceChildren(el("div", { class: "ph", text: DEMO ? "Video preview (demo)" : "Video is uploading from your PC…" })); return; }
+  if (!name) { box.replaceChildren(el("div", { class: "ph", text: DEMO ? "Video preview (demo)" : "The video is still uploading…" })); return; }
   if (box.dataset.name === name) return;
   box.dataset.name = name;
   box.replaceChildren(el("div", { class: "ph", text: "Loading video…" }));
@@ -652,7 +654,7 @@ function reviewCard(r) {
     const waiting = c && c.status === "pending";
     actions.hidden = waiting || !rejectBox.hidden; if (waiting) rejectBox.hidden = true;
     status.replaceChildren(
-      waiting ? el("div", { class: "waiting", text: `${c.command === "approve" ? "Approval" : "Rejection"} sent. ${pcOnline() ? "Your PC is applying it…" : "Your PC is offline; it will apply this when it's back."}` }) :
+      waiting ? el("div", { class: "waiting", text: `${c.command === "approve" ? "Approval" : "Rejection"} sent. The agency applies it at its next check (within ${CHECK_MINUTES} minutes).` }) :
       c && c.status === "rejected" ? el("div", { class: "waiting bad", text: `Last try didn't work: ${c.result}` }) : "");
   };
   return node;
@@ -720,7 +722,7 @@ function jobCard(j) {
     const c = latestFor((x) => (x.command === "posted" || x.command === "skip") && x.job_id === j2.job_id);
     const waiting = c && c.status === "pending";
     doneBtns.hidden = waiting;
-    status.replaceChildren(waiting ? el("div", { class: "waiting", text: "Sent. It leaves this list once your PC records it." })
+    status.replaceChildren(waiting ? el("div", { class: "waiting", text: "Sent. It leaves this list once the agency records it." })
       : c && c.status === "rejected" ? el("div", { class: "waiting bad", text: `Didn't work: ${c.result}` }) : "");
   };
   return node;
@@ -742,7 +744,7 @@ function renderActivity(root) {
         : el("div", { class: "empty", text: state.events.length ? "All clear. New activity appears here." : "No activity yet." })));
 }
 
-// ---------- CEO: the owner's personal agent, answering through the PC ----------
+// ---------- CEO: the owner's personal agent, answering through the agency ----------
 function ceoRequest(c) {
   if (c.command !== "instruction" || c.agent !== "agency") return null;
   try { const r = JSON.parse(c.body || "{}"); return r.action === "ceo" || r.action === "ceo_confirm" ? r : null; } catch (e) { return null; }
@@ -761,14 +763,14 @@ function ceoLog() {
     const r = ceoRequest(c), a = ceoAnswer(c);
     const out = [];
     if (r.action === "ceo") out.push(el("div", { class: "bubble owner", text: r.message }));
-    if (c.status === "pending") out.push(el("div", { class: "bubble ceo faint", text: pcOnline() ? "Thinking…" : "Waiting for your PC to come online…" }));
+    if (c.status === "pending") out.push(el("div", { class: "bubble ceo faint", text: `Got it. Your CEO answers at the agency's next check (within ${CHECK_MINUTES} minutes).` }));
     else if (a) out.push(el("div", { class: "bubble ceo", text: c.status === "rejected" ? `Not done: ${c.result}` : a.reply }));
     for (const item of (a?.confirm || [])) {
       const key = `${c.id}:${JSON.stringify(item)}`;
       if (confirmedHere.has(key)) continue;
       out.push(el("div", { class: "btns", style: "margin:0" },
         el("button", { class: "btn primary", onclick: () => { confirmedHere.add(key);
-          send({ command: "instruction", agent: "agency", body: JSON.stringify({ action: "ceo_confirm", item }) }, "Confirmed. Your PC will do it shortly."); } },
+          send({ command: "instruction", agent: "agency", body: JSON.stringify({ action: "ceo_confirm", item }) }, "Confirmed. The agency does it at its next check."); } },
           `Confirm: ${CEO_WORDS[item.name] || item.name}`),
         el("button", { class: "btn", onclick: () => { confirmedHere.add(key); render(); } }, "Cancel")));
     }
@@ -924,7 +926,7 @@ $("#menu").addEventListener("click", () => {
     el("div", { class: "sheet", role: "dialog", "aria-label": "Account" },
       el("h3", { text: "Account" }),
       el("p", { class: "muted", style: "margin:0", text: `Signed in as ${state.user?.email || "?"}` }),
-      el("p", { class: "faint", text: "Your PC must run the sync job (python -m content_agency.remote_sync) for changes to reach it." }),
+      el("p", { class: "faint", text: `The agency checks for your requests every ${CHECK_MINUTES} minutes.` }),
       el("div", { class: "btns" },
         el("button", { class: "btn", onclick: () => { close(); refresh(); } }, "Refresh now"),
         el("button", { class: "btn danger", "data-signout": true }, "Sign out")),
