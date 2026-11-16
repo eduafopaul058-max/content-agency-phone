@@ -112,6 +112,9 @@
   .clear:active { background: var(--surface-2); }
   .empty { text-align: center; padding: 28px 16px; color: var(--muted); }
   .empty b { display: block; color: var(--text); font-size: 16px; font-weight: 650; margin-bottom: 4px; }
+  .home-foot { margin: 32px 2px 0; text-align: center; color: var(--faint); font-size: 13px; }
+  .home-foot p { margin: 0 0 4px; }
+  .home-foot a { display: inline-block; padding: 10px 6px; color: var(--muted); text-underline-offset: 3px; }
 
   /* ---------- home ---------- */
   .hero { padding: 18px 16px 16px; }
@@ -436,12 +439,15 @@ const latestFor = (pred) => state.commands.find(pred);
 let view = "home";
 // the cloud reports in at least every 15 minutes (requests are picked up within a minute or two), so only a longer gap means something is wrong
 const CHECK_MINUTES = 15;
+const VERSION = "16 Nov B";  // shown on Home so the owner can tell an old saved copy from the latest
 function pcOnline() { return state.status && Date.now() - new Date(state.status.synced_at) < (CHECK_MINUTES + 5) * 60000; }
 function renderHeader() {
   const s = $("#pc-status");
   s.replaceChildren(
     el("span", { class: `dot ${pcOnline() ? "on" : state.status ? "off" : ""}` }),
-    !state.status ? "Waiting for the agency's first check-in" : pcOnline() ? `Agency running · checked in ${ago(state.status.synced_at)}` : `Agency late · last check-in ${ago(state.status.synced_at)}`
+    // while a video renders the cloud can't report in, so a long gap then just means busy
+    !state.status ? "Waiting for the agency's first check-in" : pcOnline() ? `Agency running · checked in ${ago(state.status.synced_at)}`
+      : state.posts.length ? `Agency busy making a video · checked in ${ago(state.status.synced_at)}` : `Agency late · last check-in ${ago(state.status.synced_at)}`
   );
   const ready = state.jobs.filter((j) => j.status === "ready").length;
   for (const [id, n] of [["#badge-review", state.review.length], ["#badge-post", ready]]) {
@@ -479,7 +485,11 @@ function renderHome(root) {
     el("h2", { class: "section" }, "Agents", el("span", { text: state.agents[0] ? `updated ${ago(state.agents[0].synced_at)}` : "" })),
     el("div", { class: "card", style: "padding:4px 16px" },
       realAgents().length ? realAgents().map(agentRow) : el("div", { class: "empty", text: "No agent status yet." })),
-    recentCommands()].flat().filter(Boolean));
+    recentCommands(),
+    // Google's YouTube API review asks for this on the home screen
+    el("footer", { class: "home-foot" },
+      el("p", { text: "Uploads videos to your own YouTube channels using YouTube API Services." }),
+      el("p", {}, el("a", { href: "privacy.html" }, "Privacy"), " · ", el("a", { href: "terms.html" }, "Terms"), ` · Version ${VERSION}`))].flat().filter(Boolean));
 }
 const realAgents = () => state.agents.filter((a) => a.agent !== AUTOPOST);
 function agencyLabel(c) {
