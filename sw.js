@@ -1,6 +1,6 @@
-// Offline shell for the phone app. Only the app's own files and the pinned
+﻿// Offline shell for the phone app. Only the app's own files and the pinned
 // supabase-js bundle are cached; Supabase data and videos always go to the network.
-const CACHE = "agency-shell-v1";
+const CACHE = "agency-shell-v2";
 const SUPABASE_JS = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", SUPABASE_JS];
 
