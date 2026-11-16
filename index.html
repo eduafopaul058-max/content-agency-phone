@@ -277,7 +277,7 @@ const PLATFORMS = {
   instagram_reels: { name: "Instagram Reels", open: "https://www.instagram.com/" },
   facebook_reels: { name: "Facebook Reels", open: "https://www.facebook.com/reels/create" },
 };
-const TITLES = { home: "Home", review: "Review", post: "Post", activity: "Activity", talk: "Talk to your CEO" };
+const TITLES = { home: "Home", review: "Review", post: "Post", activity: "Activity", talk: "Your assistant" };
 const BUCKET = "review-videos";
 const DEMO = new URLSearchParams(location.search).has("demo");
 
@@ -439,7 +439,7 @@ const latestFor = (pred) => state.commands.find(pred);
 let view = "home";
 // the cloud reports in at least every 15 minutes (requests are picked up within a minute or two), so only a longer gap means something is wrong
 const CHECK_MINUTES = 15;
-const VERSION = "16 Nov B";  // shown on Home so the owner can tell an old saved copy from the latest
+const VERSION = "16 Nov C";  // shown on Home so the owner can tell an old saved copy from the latest
 function pcOnline() { return state.status && Date.now() - new Date(state.status.synced_at) < (CHECK_MINUTES + 5) * 60000; }
 function renderHeader() {
   const s = $("#pc-status");
@@ -497,8 +497,8 @@ function agencyLabel(c) {
     const r = JSON.parse(c.body || "{}");
     if (r.action === "make") return `Make a video (${account(r.account_id)})`;
     if (r.action === "autopost") return `Auto-post ${r.enabled ? "on" : "off"}`;
-    if (r.action === "ceo") return "Message to your CEO";
-    if (r.action === "ceo_confirm") return "Confirmed for your CEO";
+    if (r.action === "ceo") return "Message to your assistant";
+    if (r.action === "ceo_confirm") return "Confirmed for your assistant";
   } catch (e) { /* not JSON: shown as a plain request */ }
   return "Request to the agency";
 }
@@ -754,7 +754,7 @@ function renderActivity(root) {
         : el("div", { class: "empty", text: state.events.length ? "All clear. New activity appears here." : "No activity yet." })));
 }
 
-// ---------- CEO: the owner's personal agent, answering through the agency ----------
+// ---------- Assistant (internally "ceo"): the owner's personal agent, answering through the agency ----------
 function ceoRequest(c) {
   if (c.command !== "instruction" || c.agent !== "agency") return null;
   try { const r = JSON.parse(c.body || "{}"); return r.action === "ceo" || r.action === "ceo_confirm" ? r : null; } catch (e) { return null; }
@@ -773,7 +773,7 @@ function ceoLog() {
     const r = ceoRequest(c), a = ceoAnswer(c);
     const out = [];
     if (r.action === "ceo") out.push(el("div", { class: "bubble owner", text: r.message }));
-    if (c.status === "pending") out.push(el("div", { class: "bubble ceo faint", text: "Got it. Your CEO answers in a minute or two (longer while a video is being made)." }));
+    if (c.status === "pending") out.push(el("div", { class: "bubble ceo faint", text: "Got it. Your assistant answers in a minute or two (longer while a video is being made)." }));
     else if (a) out.push(el("div", { class: "bubble ceo", text: c.status === "rejected" ? `Not done: ${c.result}` : a.reply }));
     for (const item of (a?.confirm || [])) {
       const key = `${c.id}:${JSON.stringify(item)}`;
@@ -788,12 +788,12 @@ function ceoLog() {
   });
 }
 function ceoCard() {
-  const box = el("textarea", { maxlength: "1900", placeholder: "Message your CEO…", required: true });
+  const box = el("textarea", { maxlength: "1900", placeholder: "Message your assistant…", required: true });
   return el("form", { class: "card ceo", onsubmit: async (ev) => {
     ev.preventDefault();
     const message = box.value.trim();
     if (!message) return;
-    if (await send({ command: "instruction", agent: "agency", body: JSON.stringify({ action: "ceo", message }) }, "Sent to your CEO.")) box.value = "";
+    if (await send({ command: "instruction", agent: "agency", body: JSON.stringify({ action: "ceo", message }) }, "Sent to your assistant.")) box.value = "";
   } },
     el("div", { class: "ceo-log" }, ...ceoLog()),
     el("label", { class: "field" }, el("span", { text: "Message" }), box),
@@ -827,7 +827,7 @@ function renderTalk(root) {
     el("label", { class: "field" }, el("span", { text: "To" }), agent),
     el("label", { class: "field" }, el("span", { text: "Message" }), body),
     el("div", { class: "btns" }, el("button", { class: "btn primary", type: "submit" }, "Send")));
-  root.replaceChildren(el("h2", { class: "section" }, "Your CEO"), ceoCard(),
+  root.replaceChildren(el("h2", { class: "section" }, "Your assistant"), ceoCard(),
     el("h2", { class: "section" }, "Or tell one agent directly"), form,
     el("h2", { class: "section" }, "Sent"), el("div", { class: "card hist", style: "padding:4px 16px" }, ...talkHistory()));
 }
