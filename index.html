@@ -354,7 +354,12 @@ function supabaseApi(cfg) {
           .gte("updated_at", new Date(Date.now() - 12 * 3600000).toISOString()).order("updated_at", { ascending: false }).limit(20));
       }
     },
-    async command(row) { return must(await sb.from("agency_commands").insert(row).select().single()); },
+    async command(row) {
+      const saved = must(await sb.from("agency_commands").insert(row).select().single());
+      // nudge the cloud to act now instead of at its next minute check; takes no input, so safe to call openly
+      fetch("https://eduafopaul058--content-agency-poke.us-east.modal.run", { method: "POST", mode: "no-cors" }).catch(() => {});
+      return saved;
+    },
     async videoUrl(name, download) {
       const key = `${name}|${download || ""}`, hit = urls.get(key);
       if (hit && hit.until > Date.now()) return hit.url;
@@ -439,7 +444,7 @@ const latestFor = (pred) => state.commands.find(pred);
 let view = "home";
 // the cloud reports in at least every 15 minutes (requests are picked up within a minute or two), so only a longer gap means something is wrong
 const CHECK_MINUTES = 15;
-const VERSION = "16 Nov C";  // shown on Home so the owner can tell an old saved copy from the latest
+const VERSION = "16 Nov D";  // shown on Home so the owner can tell an old saved copy from the latest
 function pcOnline() { return state.status && Date.now() - new Date(state.status.synced_at) < (CHECK_MINUTES + 5) * 60000; }
 function renderHeader() {
   const s = $("#pc-status");
