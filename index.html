@@ -432,6 +432,7 @@ function announceResults() {
   for (const c of state.commands) {
     if (!mine.has(c.id) || c.status === "pending" || announced.has(c.id)) continue;
     announced.add(c.id);
+    if (ceoRequest(c)?.action === "ceo" && c.status === "applied") continue; // the reply shows in the chat itself
     toast(c.status === "applied" ? `Done: ${c.result}` : `Not done: ${c.result}`, c.status !== "applied");
   }
 }
@@ -441,7 +442,7 @@ const latestFor = (pred) => state.commands.find(pred);
 let view = "home";
 // the cloud reports in at least every 15 minutes (requests are picked up within a minute or two), so only a longer gap means something is wrong
 const CHECK_MINUTES = 15;
-const VERSION = "16 Nov D";
+const VERSION = "16 Nov E";
 const POKE_URL = "https://eduafopaul058--content-agency-poke.us-east.modal.run";  // shown on Home so the owner can tell an old saved copy from the latest
 function pcOnline() { return state.status && Date.now() - new Date(state.status.synced_at) < (CHECK_MINUTES + 5) * 60000; }
 function renderHeader() {
