@@ -416,7 +416,7 @@ async function send(row, okText) {
     const c = await api.command(row);
     state.commands = [c, ...state.commands.filter((x) => x.id !== c.id)];
     mine.add(c.id);
-    toast(okText || "Sent. The agency picks it up at its next check.");
+    toast(okText || "Sent. The agency picks it up in a minute or two.");
     render();
     return c;
   } catch (e) { toast(`Couldn't send: ${e.message}`, true); }
@@ -434,7 +434,7 @@ const latestFor = (pred) => state.commands.find(pred);
 
 // ---------- rendering ----------
 let view = "home";
-// the cloud checks in every 15 minutes, so only a longer gap means something is wrong
+// the cloud reports in at least every 15 minutes (requests are picked up within a minute or two), so only a longer gap means something is wrong
 const CHECK_MINUTES = 15;
 function pcOnline() { return state.status && Date.now() - new Date(state.status.synced_at) < (CHECK_MINUTES + 5) * 60000; }
 function renderHeader() {
@@ -501,7 +501,7 @@ function makeCard() {
   const pending = latestFor((c) => c.agent === "agency" && c.status === "pending" && (c.body || "").includes('"make"'));
   return el("div", { class: "card", style: "margin-top:14px" },
     el("h3", { style: "margin:0 0 4px", text: "Make a video" }),
-    el("p", { class: "muted", style: "margin:0", text: "The agency starts it at its next check (within 15 minutes) and takes 5-20 minutes to make it. It appears under Review." }),
+    el("p", { class: "muted", style: "margin:0", text: "The agency starts it in a minute or two and takes 5-20 minutes to make it. It appears under Review." }),
     el("label", { class: "field" }, el("span", { text: "Account" }), acct),
     el("label", { class: "field" }, el("span", { text: "Topic" }), topic),
     el("label", { class: "field" }, el("span", { text: "Length" }), len),
@@ -654,7 +654,7 @@ function reviewCard(r) {
     const waiting = c && c.status === "pending";
     actions.hidden = waiting || !rejectBox.hidden; if (waiting) rejectBox.hidden = true;
     status.replaceChildren(
-      waiting ? el("div", { class: "waiting", text: `${c.command === "approve" ? "Approval" : "Rejection"} sent. The agency applies it at its next check (within ${CHECK_MINUTES} minutes).` }) :
+      waiting ? el("div", { class: "waiting", text: `${c.command === "approve" ? "Approval" : "Rejection"} sent. The agency applies it in a minute or two (longer while a video is being made).` }) :
       c && c.status === "rejected" ? el("div", { class: "waiting bad", text: `Last try didn't work: ${c.result}` }) : "");
   };
   return node;
@@ -763,14 +763,14 @@ function ceoLog() {
     const r = ceoRequest(c), a = ceoAnswer(c);
     const out = [];
     if (r.action === "ceo") out.push(el("div", { class: "bubble owner", text: r.message }));
-    if (c.status === "pending") out.push(el("div", { class: "bubble ceo faint", text: `Got it. Your CEO answers at the agency's next check (within ${CHECK_MINUTES} minutes).` }));
+    if (c.status === "pending") out.push(el("div", { class: "bubble ceo faint", text: "Got it. Your CEO answers in a minute or two (longer while a video is being made)." }));
     else if (a) out.push(el("div", { class: "bubble ceo", text: c.status === "rejected" ? `Not done: ${c.result}` : a.reply }));
     for (const item of (a?.confirm || [])) {
       const key = `${c.id}:${JSON.stringify(item)}`;
       if (confirmedHere.has(key)) continue;
       out.push(el("div", { class: "btns", style: "margin:0" },
         el("button", { class: "btn primary", onclick: () => { confirmedHere.add(key);
-          send({ command: "instruction", agent: "agency", body: JSON.stringify({ action: "ceo_confirm", item }) }, "Confirmed. The agency does it at its next check."); } },
+          send({ command: "instruction", agent: "agency", body: JSON.stringify({ action: "ceo_confirm", item }) }, "Confirmed. The agency does it in a minute or two."); } },
           `Confirm: ${CEO_WORDS[item.name] || item.name}`),
         el("button", { class: "btn", onclick: () => { confirmedHere.add(key); render(); } }, "Cancel")));
     }
@@ -926,7 +926,7 @@ $("#menu").addEventListener("click", () => {
     el("div", { class: "sheet", role: "dialog", "aria-label": "Account" },
       el("h3", { text: "Account" }),
       el("p", { class: "muted", style: "margin:0", text: `Signed in as ${state.user?.email || "?"}` }),
-      el("p", { class: "faint", text: `The agency checks for your requests every ${CHECK_MINUTES} minutes.` }),
+      el("p", { class: "faint", text: "The agency picks up your requests within a minute or two, or after the video it is making." }),
       el("div", { class: "btns" },
         el("button", { class: "btn", onclick: () => { close(); refresh(); } }, "Refresh now"),
         el("button", { class: "btn danger", "data-signout": true }, "Sign out")),
