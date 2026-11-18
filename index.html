@@ -442,7 +442,7 @@ const latestFor = (pred) => state.commands.find(pred);
 let view = "home";
 // the cloud reports in at least every 15 minutes (requests are picked up within a minute or two), so only a longer gap means something is wrong
 const CHECK_MINUTES = 15;
-const VERSION = "16 Nov E";
+const VERSION = "18 Nov A";
 const POKE_URL = "https://eduafopaul058--content-agency-poke.us-east.modal.run";  // shown on Home so the owner can tell an old saved copy from the latest
 function pcOnline() { return state.status && Date.now() - new Date(state.status.synced_at) < (CHECK_MINUTES + 5) * 60000; }
 function renderHeader() {
@@ -510,7 +510,9 @@ function agencyLabel(c) {
 function makeCard() {
   const acct = el("select", { "aria-label": "Account" }, ...Object.entries(ACCOUNTS).map(([id, name]) => el("option", { value: id, text: name })));
   acct.value = store.get("agency.makeAccount") || "gospel_tv";
-  const topic = el("input", { type: "text", maxlength: "120", placeholder: "Optional: e.g. Elijah and the fire on Mount Carmel" });
+  const topic = el("input", { type: "text", maxlength: "120", placeholder: "Title, e.g. The angel on the road" });
+  const script = el("textarea", { rows: "9", maxlength: "1700",  /* the whole request must fit Supabase's 2000-character body */ style: "width:100%;box-sizing:border-box;font:inherit",
+    placeholder: "Your script. One line per scene; each line gets its own picture. The video uses your words exactly." });
   const len = el("select", { "aria-label": "Length" }, el("option", { value: "", text: "Usual length" }),
     el("option", { value: "30", text: "30 seconds" }), el("option", { value: "60", text: "60 seconds" }), el("option", { value: "120", text: "2 minutes" }));
   const pending = latestFor((c) => c.agent === "agency" && c.status === "pending" && (c.body || "").includes('"make"'));
@@ -518,14 +520,16 @@ function makeCard() {
     el("h3", { style: "margin:0 0 4px", text: "Make a video" }),
     el("p", { class: "muted", style: "margin:0", text: "The agency starts it in a minute or two and takes 5-20 minutes to make it. It appears under Review." }),
     el("label", { class: "field" }, el("span", { text: "Account" }), acct),
-    el("label", { class: "field" }, el("span", { text: "Topic" }), topic),
-    el("label", { class: "field" }, el("span", { text: "Length" }), len),
+    el("label", { class: "field" }, el("span", { text: "Title" }), topic),
+    el("label", { class: "field" }, el("span", { text: "Script" }), script),
+    el("label", { class: "field" }, el("span", { text: "Length (only without a script)" }), len),
     el("div", { class: "btns" }, el("button", {
       class: "btn primary", disabled: !!pending,
       onclick: () => {
         store.set("agency.makeAccount", acct.value);
         send({ command: "instruction", agent: "agency", body: JSON.stringify({ action: "make", account_id: acct.value,
-          topic: topic.value.trim(), length: len.value ? Number(len.value) : null }) }, "Asked the agency to make it…");
+          topic: topic.value.trim(), length: len.value ? Number(len.value) : null, script: script.value.trim() }) },
+          "Asked the agency to make it…");
       },
     }, pending ? "Waiting for the agency…" : "Make it")));
 }
