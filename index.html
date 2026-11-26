@@ -191,40 +191,15 @@
 <body>
 <noscript><p style="padding:24px">This app needs JavaScript.</p></noscript>
 
-<!-- one-time setup: which Supabase project to talk to -->
-<section id="setup" class="gate" hidden>
-  <form class="card" id="setup-form" autocomplete="off">
-    <img src="icon-192.png" alt="">
-    <h1>Connect your agency</h1>
-    <p class="muted">Paste your Supabase project's address and its <b>publishable</b> key (Project Settings → API Keys). Never the secret key.</p>
-    <label class="field"><span>Project URL</span><input type="url" name="url" placeholder="https://abcd1234.supabase.co" required></label>
-    <label class="field"><span>Publishable key</span><input type="text" name="key" placeholder="sb_publishable_…" required spellcheck="false"></label>
-    <p class="error" id="setup-error" role="alert"></p>
-    <button class="btn primary block" type="submit">Save</button>
-  </form>
-</section>
-
 <section id="login" class="gate" hidden>
   <form class="card" id="login-form">
     <img src="icon-192.png" alt="">
     <h1>Sign in</h1>
-    <p class="muted">Use the email and password of the owner account you made in Supabase.</p>
-    <label class="field"><span>Email</span><input type="email" name="email" autocomplete="username" required></label>
-    <label class="field"><span>Password</span><input type="password" name="password" autocomplete="current-password" required></label>
+    <p class="muted">Type your agency passcode (it's in the file phone-passcode.txt in the agency folder on your laptop).</p>
+    <label class="field"><span>Passcode</span><input type="password" name="passcode" autocomplete="current-password" required spellcheck="false"></label>
     <p class="error" id="login-error" role="alert"></p>
     <button class="btn primary block" type="submit">Sign in</button>
-    <button class="btn ghost block" type="button" id="change-project" style="margin-top:8px">Use a different project</button>
   </form>
-</section>
-
-<section id="not-owner" class="gate" hidden>
-  <div class="card">
-    <img src="icon-192.png" alt="">
-    <h1>Almost there</h1>
-    <p class="muted">You're signed in, but this account isn't an owner yet. In Supabase → SQL Editor, run:</p>
-    <pre class="sql" id="owner-sql"></pre>
-    <div class="btns"><button class="btn primary" id="recheck">I ran it</button><button class="btn" data-signout>Sign out</button></div>
-  </div>
 </section>
 
 <div id="app" hidden>
@@ -258,14 +233,12 @@
 </div>
 <div id="toast" aria-live="polite"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
 "use strict";
 // ---------------------------------------------------------------------------
-// Everything shown here comes from the Supabase mirror that the agency's sync job
-// (python -m content_agency.remote_sync) keeps up to date. Buttons never change
-// anything directly: they queue a row in agency_commands, which only owners may
-// insert (row-level security), and the agency applies it with a remote:<you> actor.
+// Everything shown here comes from the agency's phone store on Modal (content_agency/phone_store.py),
+// which the sync job keeps up to date. Buttons never change anything directly: they queue a row in
+// agency_commands (only with the owner's passcode), and the agency applies it with a remote:<you> actor.
 // All remote text is rendered as text, never as HTML.
 // ---------------------------------------------------------------------------
 const AGENTS = ["planner", "researcher", "scriptwriter", "video", "judge"];
@@ -278,7 +251,6 @@ const PLATFORMS = {
   facebook_reels: { name: "Facebook Reels", open: "https://www.facebook.com/reels/create" },
 };
 const TITLES = { home: "Home", review: "Review", post: "Post", activity: "Activity", talk: "Your assistant" };
-const BUCKET = "review-videos";
 const DEMO = new URLSearchParams(location.search).has("demo");
 
 // ---------- tiny helpers ----------
@@ -324,7 +296,7 @@ const day = (iso) => {
 const account = (id) => ACCOUNTS[id] || String(id).replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 const platform = (id) => (PLATFORMS[id] || { name: id }).name;
 
-// ---------- data layer (Supabase, or sample data for ?demo) ----------
+// ---------- data layer (the agency on Modal, or sample data for ?demo) ----------
 const state = { status: null, agents: [], review: [], jobs: [], events: [], commands: [], posts: [], user: null };
 const MAKING = ["draft", "researched", "scripted", "rendering", "rendered", "qc_running", "qc_passed"];
 const STATE_WORDS = { draft: "Planned", researched: "Researched", scripted: "Script written", rendering: "Making the video",
@@ -332,43 +304,58 @@ const STATE_WORDS = { draft: "Planned", researched: "Researched", scripted: "Scr
 const AUTOPOST = "autopost"; // the auto-post switch arrives as an extra agents row (paused = off)
 let api = null;
 
-function supabaseApi(cfg) {
-  const sb = window.supabase.createClient(cfg.url, cfg.key, { auth: { persistSession: true, autoRefreshToken: true } });
+const AGENCY_URL = "https://eduafopaul058--content-agency-phone.us-east.modal.run";
+function modalApi() {
+  const key = () => store.get("agency.passcode");
+  async function call(path, opts = {}) {
+    const headers = { Authorization: `Bearer ${key()}` };
+    if (opts.body) headers["Content-Type"] = "application/json";
+    const r = await fetch(AGENCY_URL + path, { ...opts, headers });
+    if (!r.ok) {
+      let msg = `the agency answered ${r.status}`;
+      try { msg = (await r.json()).detail || msg; } catch {}
+      throw Object.assign(new Error(msg), { status: r.status });
+    }
+    return r.json();
+  }
+  const by = (k, desc) => (a, b) => (a[k] < b[k] ? -1 : a[k] > b[k] ? 1 : 0) * (desc ? -1 : 1);
   const urls = new Map();
-  const must = ({ data, error }) => { if (error) throw new Error(error.message); return data; };
   return {
-    sb,
-    async session() { return (await sb.auth.getSession()).data.session; },
-    async signIn(email, password) { must(await sb.auth.signInWithPassword({ email, password })); },
-    async signOut() { await sb.auth.signOut(); },
-    async isOwner(uid) { return must(await sb.from("agency_owners").select("user_id").eq("user_id", uid)).length > 0; },
+    async session() {
+      if (!key()) return null;
+      try { await call("/api/check"); } catch (e) { if (e.status === 401) { store.del("agency.passcode"); return null; } throw e; }
+      return { user: { id: "owner" } };
+    },
+    async signIn(passcode) {
+      store.set("agency.passcode", passcode);
+      try { await call("/api/check"); } catch (e) { store.del("agency.passcode"); throw e; }
+    },
+    async signOut() { store.del("agency.passcode"); },
+    async isOwner() { return true; },
     async load(table) {
+      const rows = await call(`/api/table/${table}`);
       switch (table) {
-        case "agency_status": return must(await sb.from(table).select("*").eq("id", 1)).at(0) || null;
-        case "agency_agents": return must(await sb.from(table).select("*").order("agent"));
-        case "agency_review": return must(await sb.from(table).select("*").order("synced_at"));
-        case "agency_jobs": return must(await sb.from(table).select("*").in("status", ["ready", "waiting", "blocked", "failed"]).order("due_at").limit(120));
-        case "agency_events": return must(await sb.from(table).select("*").order("id", { ascending: false }).limit(80));
-        case "agency_commands": return must(await sb.from(table).select("*").order("id", { ascending: false }).limit(40));
-        case "agency_posts": return must(await sb.from(table).select("*").in("state", MAKING)
-          .gte("updated_at", new Date(Date.now() - 12 * 3600000).toISOString()).order("updated_at", { ascending: false }).limit(20));
+        case "agency_status": return rows.find((r) => r.id === 1) || null;
+        case "agency_agents": return rows.sort(by("agent"));
+        case "agency_review": return rows.sort(by("synced_at"));
+        case "agency_jobs": return rows.filter((r) => ["ready", "waiting", "blocked", "failed"].includes(r.status)).sort(by("due_at")).slice(0, 120);
+        case "agency_events": return rows.sort(by("id", true)).slice(0, 80);
+        case "agency_commands": return rows;
+        case "agency_posts": return rows.filter((r) => MAKING.includes(r.state) && Date.now() - new Date(r.updated_at) < 12 * 3600000)
+          .sort(by("updated_at", true)).slice(0, 20);
       }
     },
-    async command(row) { return must(await sb.from("agency_commands").insert(row).select().single()); },
+    // saving a command also tells the agency to look at once
+    async command(row) { return call("/api/commands", { method: "POST", body: JSON.stringify(row) }); },
     async videoUrl(name, download) {
-      const key = `${name}|${download || ""}`, hit = urls.get(key);
+      const k = `${name}|${download || ""}`, hit = urls.get(k);
       if (hit && hit.until > Date.now()) return hit.url;
-      const opts = download ? { download } : undefined;
-      const data = must(await sb.storage.from(BUCKET).createSignedUrl(name, 3600, opts));
-      urls.set(key, { url: data.signedUrl, until: Date.now() + 50 * 60 * 1000 });
-      return data.signedUrl;
+      const q = download ? `?download=${encodeURIComponent(download)}` : "";
+      const url = AGENCY_URL + (await call(`/api/video-link/${encodeURIComponent(name)}${q}`)).url;
+      urls.set(k, { url, until: Date.now() + 50 * 60 * 1000 });
+      return url;
     },
-    live(onChange) {
-      let ch = sb.channel("agency-live");
-      for (const t of ["agency_status", "agency_agents", "agency_review", "agency_jobs", "agency_events", "agency_commands"])
-        ch = ch.on("postgres_changes", { event: "*", schema: "public", table: t }, () => onChange(t));
-      ch.subscribe();
-    },
+    live() {},  // no push updates: the app refreshes every 20 seconds while open
   };
 }
 
@@ -417,8 +404,6 @@ function demoApi() {
 async function send(row, okText) {
   try {
     const c = await api.command(row);
-    // nudge the cloud to look now (about 10 s) instead of at its next one-minute check; no data is sent
-    if (!DEMO) fetch(POKE_URL, { method: "POST", mode: "no-cors" }).catch(() => {});
     state.commands = [c, ...state.commands.filter((x) => x.id !== c.id)];
     mine.add(c.id);
     toast(okText || "Sent. The agency picks it up in a minute or two.");
@@ -442,8 +427,7 @@ const latestFor = (pred) => state.commands.find(pred);
 let view = "home";
 // the cloud reports in at least every 15 minutes (requests are picked up within a minute or two), so only a longer gap means something is wrong
 const CHECK_MINUTES = 15;
-const VERSION = "18 Nov A";
-const POKE_URL = "https://eduafopaul058--content-agency-poke.us-east.modal.run";  // shown on Home so the owner can tell an old saved copy from the latest
+const VERSION = "26 Nov A";  // shown on Home so the owner can tell an old saved copy from the latest
 function pcOnline() { return state.status && Date.now() - new Date(state.status.synced_at) < (CHECK_MINUTES + 5) * 60000; }
 function renderHeader() {
   const s = $("#pc-status");
@@ -511,7 +495,7 @@ function makeCard() {
   const acct = el("select", { "aria-label": "Account" }, ...Object.entries(ACCOUNTS).map(([id, name]) => el("option", { value: id, text: name })));
   acct.value = store.get("agency.makeAccount") || "gospel_tv";
   const topic = el("input", { type: "text", maxlength: "120", placeholder: "Title, e.g. The angel on the road" });
-  const script = el("textarea", { rows: "9", maxlength: "1700",  /* the whole request must fit Supabase's 2000-character body */ style: "width:100%;box-sizing:border-box;font:inherit",
+  const script = el("textarea", { rows: "9", maxlength: "1700",  /* the whole request must fit the 2000-character command body */ style: "width:100%;box-sizing:border-box;font:inherit",
     placeholder: "Your script. One line per scene; each line gets its own picture. The video uses your words exactly." });
   const len = el("select", { "aria-label": "Length" }, el("option", { value: "", text: "Usual length" }),
     el("option", { value: "30", text: "30 seconds" }), el("option", { value: "60", text: "60 seconds" }), el("option", { value: "120", text: "2 minutes" }));
@@ -884,57 +868,35 @@ function onLive(table) {
 }
 
 function show(id) {
-  for (const s of ["#setup", "#login", "#not-owner", "#app"]) $(s).hidden = s !== id;
+  for (const s of ["#login", "#app"]) $(s).hidden = s !== id;
 }
 async function start() {
   if (DEMO) {
     document.body.append(el("span", { class: "demo", text: "DEMO" }));
     api = demoApi();
   } else {
-    const cfg = store.get("agency.config");
-    if (!cfg || !window.supabase) { show("#setup"); if (!window.supabase) $("#setup-error").textContent = "Couldn't load the Supabase library. Check your connection."; return; }
-    api = supabaseApi(cfg);
+    api = modalApi();
   }
   const session = await api.session();
   if (!session) { show("#login"); return; }
   state.user = session.user;
-  if (!(await api.isOwner(session.user.id).catch(() => false))) {
-    $("#owner-sql").textContent = `insert into public.agency_owners (user_id)\nselect id from auth.users where email = '${session.user.email}'\non conflict do nothing;`;
-    show("#not-owner");
-    return;
-  }
   show("#app");
   go(VIEWS[store.get("agency.view")] ? store.get("agency.view") : "home");
   await refresh();
   api.live(onLive);
-  setInterval(() => refresh(), 30000); // safety net if live updates drop
+  setInterval(() => document.visibilityState === "visible" && refresh(), 20000);
   setInterval(renderHeader, 15000);    // keep "synced 2 min ago" honest
   document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && refresh());
 }
 
 // ---------- gate screens ----------
-$("#setup-form").addEventListener("submit", (ev) => {
-  ev.preventDefault();
-  const f = new FormData(ev.target), url = String(f.get("url")).trim().replace(/\/+$/, ""), key = String(f.get("key")).trim();
-  const err = $("#setup-error");
-  if (!/^https:\/\/[a-z0-9-]+\.supabase\.(co|in)$/i.test(url)) { err.textContent = "That doesn't look like a Supabase project URL (https://xxxx.supabase.co)."; return; }
-  if (/^sb_secret_/.test(key) || jwtRole(key) === "service_role") { err.textContent = "That's the SECRET key. Never put it on a phone. Use the publishable (or anon) key."; return; }
-  if (!/^sb_publishable_/.test(key) && jwtRole(key) !== "anon") { err.textContent = "Use the publishable key (starts with sb_publishable_)."; return; }
-  store.set("agency.config", { url, key });
-  location.reload();
-});
-function jwtRole(key) {
-  try { return JSON.parse(atob(key.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).role; } catch { return null; }
-}
 $("#login-form").addEventListener("submit", async (ev) => {
   ev.preventDefault();
   const f = new FormData(ev.target), btn = ev.target.querySelector("[type=submit]");
   btn.disabled = true; $("#login-error").textContent = "";
-  try { await api.signIn(String(f.get("email")).trim(), String(f.get("password"))); location.reload(); }
+  try { await api.signIn(String(f.get("passcode")).trim()); location.reload(); }
   catch (e) { $("#login-error").textContent = e.message; btn.disabled = false; }
 });
-$("#change-project").addEventListener("click", () => { store.del("agency.config"); location.reload(); });
-$("#recheck").addEventListener("click", () => location.reload());
 document.addEventListener("click", async (ev) => {
   if (ev.target.closest("[data-signout]")) { await api.signOut(); location.reload(); }
 });
@@ -944,7 +906,7 @@ $("#menu").addEventListener("click", () => {
   const bg = el("div", { class: "sheet-bg", onclick: (e) => e.target === bg && close() },
     el("div", { class: "sheet", role: "dialog", "aria-label": "Account" },
       el("h3", { text: "Account" }),
-      el("p", { class: "muted", style: "margin:0", text: `Signed in as ${state.user?.email || "?"}` }),
+      el("p", { class: "muted", style: "margin:0", text: "Signed in with your passcode" }),
       el("p", { class: "faint", text: "The agency picks up your requests within a minute or two, or after the video it is making." }),
       el("div", { class: "btns" },
         el("button", { class: "btn", onclick: () => { close(); refresh(); } }, "Refresh now"),

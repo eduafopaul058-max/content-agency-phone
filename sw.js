@@ -1,8 +1,6 @@
-// Offline shell for the phone app. Only the app's own files and the pinned
-// supabase-js bundle are cached; Supabase data and videos always go to the network.
-const CACHE = "agency-shell-v6";
-const SUPABASE_JS = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js";
-const SHELL = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", SUPABASE_JS];
+// Offline shell for the phone app. Only the app's own files are cached; data and videos always go to the network.
+const CACHE = "agency-shell-v7";
+const SHELL = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", (event) => {
   // "reload" skips the phone's HTTP cache (GitHub Pages lets it keep files 10 min), so an update is really new
@@ -22,11 +20,6 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET") return;
   const url = new URL(request.url);
-  if (request.url === SUPABASE_JS) {
-    // pinned version never changes, so the cached copy is always right
-    event.respondWith(caches.match(request).then((hit) => hit || fetch(request)));
-    return;
-  }
   if (url.origin !== self.location.origin) return;
   // the app's own files: fresh when online, cached when not
   event.respondWith(
